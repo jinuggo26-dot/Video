@@ -1,0 +1,508 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#080d1b">
+<title>UPSCALE STUDIO | 사진·영상 화질 개선</title>
+<style>
+:root{--bg:#080d1b;--panel:#10182b;--panel2:#151f34;--line:#293854;--muted:#9caac3;--text:#eff5ff;--accent:#7699ff;--accent2:#51d9c9;--bad:#ff8f99;--round:20px}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:radial-gradient(ellipse 90% 38% at 50% -5%,#1a3461 0,transparent 78%),var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans KR",sans-serif;line-height:1.55;-webkit-tap-highlight-color:transparent}button,input,select{font:inherit}button{cursor:pointer}button:disabled{opacity:.48;cursor:not-allowed}button:focus-visible,.choice:focus-within,.drop:focus-within{outline:2px solid #8baaff;outline-offset:3px}a{color:var(--accent)}.shell{max-width:1140px;margin:auto;padding:24px 22px 70px}
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:6px 0 58px}.brand{display:flex;align-items:center;gap:12px;font-weight:850;letter-spacing:-.6px;font-size:17px}.logo{width:38px;height:38px;display:grid;place-items:center;border-radius:12px;background:linear-gradient(145deg,#90b4ff,#5764ec);color:#fff;box-shadow:0 8px 28px #315ad654}.logo svg{width:21px;height:21px}.status{font-size:12px;display:flex;align-items:center;gap:8px;color:var(--muted);background:#121d31;border:1px solid #26334d;padding:7px 11px;border-radius:999px;max-width:55%;text-align:right}.dot{width:7px;height:7px;border-radius:50%;background:#f8ba76;flex-shrink:0}.dot.ok{background:#5bddb3}.dot.bad{background:#f98f96}.hero{text-align:center;margin:0 auto 35px;max-width:750px}.eyebrow{display:inline-block;padding:5px 13px;border:1px solid #365383;background:#183052a1;border-radius:999px;color:#9abaff;font-size:12px;font-weight:800;letter-spacing:1.2px}.hero h1{font-size:clamp(30px,5vw,50px);margin:15px 0 10px;line-height:1.2;letter-spacing:-2px}.hero h1 span{background:linear-gradient(95deg,#9cbeff,#80a4ff,#55e8cb);-webkit-background-clip:text;background-clip:text;color:transparent}.hero p{color:var(--muted);margin:0;font-size:14px}.cols{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:19px;align-items:start}.card{border:1px solid var(--line);background:linear-gradient(145deg,#121d31,#0e1628);border-radius:var(--round);padding:22px;box-shadow:0 16px 50px #00000013}.card h2{font-size:17px;margin:0 0 17px;letter-spacing:-.45px}.section-head{display:flex;align-items:center;justify-content:space-between;gap:12px}.hint{font-size:12px;color:var(--muted)}.drop{border:1.5px dashed #49618b;border-radius:16px;min-height:228px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px 12px;transition:.2s;background:linear-gradient(135deg,#182b4a45,#0e172a80);position:relative}.drop.drag{background:#243e67;border-color:#87b2ff}.up-icon{width:57px;height:57px;background:#2c426c;border-radius:16px;display:grid;place-items:center;font-size:30px;margin-bottom:14px;color:#c4d5ff}.drop strong{font-size:15px}.drop p{margin:5px 0 15px;color:var(--muted);font-size:12px}.drop button{position:relative;z-index:2}.file-input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}.pill-btn{background:#263b61;color:#dae5ff;border:1px solid #5572a0;border-radius:10px;padding:9px 18px;font-weight:800;font-size:13px;pointer-events:none}.current-file{margin-top:13px;background:#18243b;border:1px solid #354665;border-radius:12px;display:none;padding:12px;align-items:center;gap:12px}.current-file.show{display:flex}.file-icon{background:#2c416b;color:#cbdfff;border-radius:10px;padding:11px;font-size:19px}.file-description{min-width:0;flex:1}.file-description strong{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:13px}.file-description small{color:var(--muted);font-size:11px}.file-clear{border:1px solid #405170;background:none;color:#c8d9fb;border-radius:9px;padding:5px 10px;font-size:12px;flex:none}
+.preview{margin-top:19px;display:none}.preview.show{display:block}.preview h3{font-size:13px;margin:0 0 10px;font-weight:800;color:#c4d5f4}.preview-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.preview-frame{border:1px solid #303e58;background:repeating-conic-gradient(#202b41 0 25%,#1a2437 0 50%) 50%/24px 24px;border-radius:13px;min-height:165px;height:255px;overflow:hidden;display:flex;align-items:center;justify-content:center;position:relative}.preview-frame img,.preview-frame video{max-width:100%;max-height:100%;object-fit:contain;display:block}.preview-frame video{width:100%;height:100%}.preview-frame .placeholder{font-size:12px;color:#8193b5;padding:12px;text-align:center}.preview-label{font-size:12px;color:var(--muted);margin-bottom:7px;display:flex;justify-content:space-between}.output-actions{margin-top:14px;display:none;gap:9px}.output-actions.show{display:flex}.btn{border:0;border-radius:12px;padding:12px 17px;font-weight:800;font-size:14px;display:inline-flex;align-items:center;justify-content:center;gap:7px;text-decoration:none}.btn-primary{background:linear-gradient(100deg,#6f9bff,#647ef6);color:white;box-shadow:0 8px 25px #4b6eff3a}.btn-secondary{background:#1f2d49;color:#c9dcff;border:1px solid #39527b}.output-actions .btn{flex:1}.setting-group{margin-bottom:20px}.setting-label{font-size:13px;font-weight:800;margin-bottom:11px;display:flex;justify-content:space-between;gap:8px}.quality-list{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.choice{position:relative;cursor:pointer}.choice input{position:absolute;opacity:0;pointer-events:none}.quality-ui{border:1px solid #364664;background:#18253c;border-radius:12px;padding:12px 6px;text-align:center;transition:.2s;display:block}.quality-ui strong{display:block;font-size:16px}.quality-ui small{display:block;font-size:10px;color:#a6b4cc}.choice input:checked+.quality-ui{border-color:#719bff;background:#263b61;box-shadow:0 0 0 1px #719bff inset}.note{margin:11px 0 0;background:#1a2b43;border:1px solid #34465f;color:#bdcee9;font-size:11px;border-radius:10px;padding:9px 10px}.form-row{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:13px;margin-bottom:11px}.form-row select{background:#1b2941;border:1px solid #40516e;border-radius:9px;padding:8px 10px;color:var(--text);max-width:62%}.check{display:flex;align-items:center;gap:8px;font-size:12px;color:#c9d5ee}.check input{accent-color:#7699ff;width:16px;height:16px}.start{width:100%;min-height:49px;font-size:15px}.small-notice{font-size:11px;color:var(--muted);margin:11px 1px 0;text-align:center}.progress{display:none;margin-top:15px;background:#17253a;border-radius:12px;padding:13px;border:1px solid #39506b}.progress.show{display:block}.progress-title{font-size:12px;color:#d0def8;display:flex;justify-content:space-between;gap:8px}.track{width:100%;height:7px;border-radius:6px;background:#30415e;margin-top:10px;overflow:hidden}.fill{width:0;height:100%;background:linear-gradient(90deg,#6893ff,#6de1c5);transition:width .3s}.alert{font-size:12px;white-space:pre-wrap;line-height:1.6;margin-top:12px;border-radius:10px;padding:10px 12px;display:none}.alert.show{display:block}.alert.error{background:#3c202b;color:#ffd0d4;border:1px solid #70404e}.alert.info{background:#1b304b;color:#bddaff;border:1px solid #345b86}.below{margin-top:20px;display:grid;grid-template-columns:1fr 1fr;gap:18px}.info{background:#0f192c;border:1px solid var(--line);border-radius:16px;padding:17px}.info strong{font-size:13px}.info p{font-size:12px;color:var(--muted);margin:7px 0 0}.footer{text-align:center;margin:30px 0 0;color:#7287a8;font-size:12px}.hide{display:none!important}
+@media (max-width:860px){.cols{grid-template-columns:1fr}.shell{max-width:720px}.top{margin-bottom:38px}.card{padding:19px}.right{order:0}.left{order:1}.preview-frame{height:235px}}@media(max-width:480px){.shell{padding:17px 13px 48px}.hero h1{letter-spacing:-1.5px}.hero p{font-size:12px}.brand{font-size:14px}.status{font-size:10px;max-width:54%}.top{margin:2px 0 30px}.card{padding:16px}.drop{min-height:200px}.preview-frame{height:190px;min-height:130px}.preview-grid{gap:8px}.below{grid-template-columns:1fr;gap:9px}.output-actions .btn{font-size:12px;padding:10px 9px}}
+
+.feature-hint{font-size:12px;color:var(--muted);line-height:1.7;margin:9px 0 0}
+.checks{display:grid;gap:10px}
+.row-actions{display:flex;gap:9px;margin-top:10px}
+.row-actions .btn{flex:1}
+.progress-meta{font-size:11px;color:#a6b8d5;margin-top:9px;white-space:pre-wrap}
+.text-blue{color:#8cc9ff}
+.video-help{margin-top:16px;line-height:1.65;font-size:12px;color:#b6c7e4;border:1px solid #31435f;background:#13213a;border-radius:12px;padding:13px}
+@media(max-width:860px){.cols .left{order:0}.cols .right{order:1}}
+@media(max-width:480px){.quality-ui{padding:11px 3px}.quality-ui strong{font-size:15px}.row-actions .btn{font-size:12px}}
+</style>
+</head>
+<body>
+<div class="shell">
+  <header class="top">
+    <div class="brand"><span class="logo" aria-hidden="true">✦</span> UPSCALE STUDIO</div>
+    <div class="status"><span class="dot ok"></span><span>GitHub Pages · 단일 HTML</span></div>
+  </header>
+  <section class="hero"><span class="eyebrow">PHOTO & VIDEO UPSCALER</span>
+    <h1>더 크고, <span>더 선명하게.</span></h1>
+    <p>별도 설치 없이 사진과 영상을 1080p · 4K · 8K 해상도로 확대하세요.</p>
+  </section>
+
+  <main class="cols">
+    <section class="card left" aria-label="파일 및 미리보기">
+      <div class="section-head"><h2>01. 원본 업로드</h2><span class="hint">사진 / 영상</span></div>
+      <div class="drop" id="dropzone">
+        <div class="up-icon" aria-hidden="true">↑</div>
+        <strong>사진 또는 영상 파일을 선택하세요</strong>
+        <p>사진 JPG·PNG·WEBP·BMP / 영상 MP4·MOV·WEBM</p>
+        <span class="pill-btn">파일 찾아보기</span>
+        <input class="file-input" id="fileInput" type="file" accept="image/jpeg,image/png,image/webp,image/bmp,video/mp4,video/quicktime,video/webm,.m4v" aria-label="원본 사진 또는 영상 선택">
+      </div>
+      <div id="currentFile" class="current-file">
+        <div class="file-icon" id="fileIcon">▣</div>
+        <div class="file-description"><strong id="fileName"></strong><small id="fileMeta"></small></div>
+        <button id="clearBtn" class="file-clear" type="button">삭제</button>
+      </div>
+      <section class="preview" id="previewSection">
+        <h3>02. 전후 미리보기</h3>
+        <div class="preview-grid">
+          <div><div class="preview-label"><span>원본</span><span id="originalSize"></span></div><div class="preview-frame" id="originalPreview"></div></div>
+          <div><div class="preview-label"><span>변환 결과</span><span id="resultSize"></span></div><div class="preview-frame" id="resultPreview"><div class="placeholder">변환하면 결과가 나타납니다.</div></div></div>
+        </div>
+        <div class="output-actions" id="outputActions">
+          <button class="btn btn-primary" id="saveBtn" type="button">↓ 파일 저장</button>
+          <button class="btn btn-secondary" id="openBtn" type="button">새 창에서 열기</button>
+        </div>
+        <p class="feature-hint" id="resultDescription"></p>
+      </section>
+    </section>
+
+    <section class="card right" aria-label="화질 개선 설정">
+      <h2>03. 출력 설정</h2>
+      <div class="setting-group">
+        <div class="setting-label">해상도 선택 <span class="hint" id="targetText">비율 유지</span></div>
+        <div class="quality-list">
+          <label class="choice"><input type="radio" name="quality" value="1080p" checked><span class="quality-ui"><strong>1080p</strong><small>1920×1080</small></span></label>
+          <label class="choice"><input type="radio" name="quality" value="4k"><span class="quality-ui"><strong>4K</strong><small>3840×2160</small></span></label>
+          <label class="choice"><input type="radio" name="quality" value="8k"><span class="quality-ui"><strong>8K</strong><small>7680×4320</small></span></label>
+        </div>
+        <p class="feature-hint">영상과 사진 모두 원본 비율을 유지합니다. 선택한 값은 16:9 기준 최대 해상도입니다.</p>
+      </div>
+      <div class="setting-group">
+        <div class="setting-label">추가 설정</div>
+        <div class="checks">
+          <label class="check"><input type="checkbox" id="enhance" checked>가벼운 명암·색감 보정</label>
+          <label class="check" id="audioOption" style="display:none"><input type="checkbox" id="audio" checked>영상 원본 소리 보존 시도</label>
+        </div>
+        <div class="form-row" id="imageFormat" style="margin:16px 0 0">
+          <label for="format">사진 파일 형식</label>
+          <select id="format"><option value="png">PNG</option><option value="jpg">JPG</option></select>
+        </div>
+      </div>
+      <button class="btn btn-primary start" id="startBtn" type="button">✦ 화질 개선 시작</button>
+      <div class="row-actions"><button id="cancelBtn" class="btn btn-secondary" type="button" disabled>변환 취소</button></div>
+      <div class="progress" id="progress">
+        <div class="progress-title"><span id="stage">준비 중</span><span id="percent">0%</span></div>
+        <div class="track"><div id="fill" class="fill"></div></div>
+        <div class="progress-meta" id="progressMeta"></div>
+      </div>
+      <div class="alert" id="message" role="status" aria-live="polite"></div>
+      <p class="small-notice" id="notice">파일은 기기 안에서 처리되며 외부 서버에 업로드되지 않습니다.</p>
+    </section>
+  </main>
+  <section class="below" aria-label="안내">
+    <div class="info"><strong>🔒 파일은 기기 안에서 처리</strong><p>GitHub Pages에서도 작동합니다. 사진 출력은 PNG/JPG, 영상 출력은 브라우저 지원에 따라 MP4 또는 WEBM입니다.</p></div>
+    <div class="info"><strong>ℹ️ 4K·8K 영상의 한계</strong><p>영상은 실시간으로 다시 녹화합니다. 기기 성능에 따라 프레임 누락·오디오 문제·실패가 발생할 수 있습니다. 해상도를 늘려도 원본의 세부 정보까지 복원되지는 않습니다.</p></div>
+  </section>
+  <div class="footer">UPSCALE STUDIO · HTML 1개 파일 · 기기 내 처리</div>
+</div>
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const ui = {
+    input: $('fileInput'), drop: $('dropzone'), current: $('currentFile'),
+    fileName: $('fileName'), fileMeta: $('fileMeta'), fileIcon: $('fileIcon'),
+    clear: $('clearBtn'), preview: $('previewSection'), original: $('originalPreview'),
+    result: $('resultPreview'), originalSize: $('originalSize'), resultSize: $('resultSize'),
+    actions: $('outputActions'), save: $('saveBtn'), open: $('openBtn'),
+    resultDescription: $('resultDescription'), target: $('targetText'),
+    enhance: $('enhance'), audio: $('audio'), audioOption: $('audioOption'),
+    format: $('format'), imageFormat: $('imageFormat'),
+    start: $('startBtn'), cancel: $('cancelBtn'), progress: $('progress'),
+    stage: $('stage'), percent: $('percent'), fill: $('fill'),
+    progressMeta: $('progressMeta'), message: $('message'), notice: $('notice')
+  };
+
+  const PRESETS = {
+    '1080p': [1920, 1080], '4k': [3840, 2160], '8k': [7680, 4320]
+  };
+  const state = {
+    file: null, kind: null, dimensions: null, inputURL: null, outputURL: null,
+    extension: null, busy: false, cancelled: false, recorder: null,
+    stopPlayback: null, raf: 0
+  };
+
+  const selectedQuality = () => document.querySelector('input[name="quality"]:checked').value;
+  const pretty = n => Number(n).toLocaleString('ko-KR');
+  const sizeText = bytes => bytes >= 1048576 ? (bytes / 1048576).toFixed(1) + ' MB' : (bytes / 1024).toFixed(0) + ' KB';
+  const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+  function tell(text, type = 'info') {
+    ui.message.textContent = text;
+    ui.message.className = 'alert show ' + type;
+  }
+  function untell() {
+    ui.message.textContent = '';
+    ui.message.className = 'alert';
+  }
+  function report(text, pct, subtext = '') {
+    ui.progress.classList.add('show');
+    ui.stage.textContent = text;
+    ui.percent.textContent = String(Math.min(100, Math.max(0, Math.round(pct)))) + '%';
+    ui.fill.style.width = ui.percent.textContent;
+    ui.progressMeta.textContent = subtext;
+  }
+  function targetDimensions() {
+    if (!state.dimensions) return null;
+    let [maxW, maxH] = PRESETS[selectedQuality()];
+    const [w, h] = state.dimensions;
+    if (h > w) [maxW, maxH] = [maxH, maxW];
+    const scale = Math.min(maxW / w, maxH / h);
+    let outputW = Math.max(1, Math.round(w * scale));
+    let outputH = Math.max(1, Math.round(h * scale));
+    if (state.kind === 'video') {
+      outputW = Math.max(2, Math.floor(outputW / 2) * 2);
+      outputH = Math.max(2, Math.floor(outputH / 2) * 2);
+    }
+    return [outputW, outputH];
+  }
+  function refreshUI() {
+    const isVideo = state.kind === 'video';
+    ui.imageFormat.style.display = isVideo ? 'none' : '';
+    ui.audioOption.style.display = isVideo ? '' : 'none';
+    const d = targetDimensions();
+    ui.target.textContent = d ? pretty(d[0]) + ' × ' + pretty(d[1]) : '비율 유지';
+    ui.start.disabled = state.busy;
+    ui.cancel.disabled = !state.busy;
+    ui.clear.disabled = state.busy;
+    ui.input.disabled = state.busy;
+    document.querySelectorAll('input[name="quality"],#format,#enhance,#audio')
+      .forEach(input => input.disabled = state.busy);
+    ui.start.textContent = state.busy ? '변환 중…' : '✦ 화질 개선 시작';
+    ui.notice.textContent = isVideo
+      ? '영상: 브라우저가 실시간으로 재녹화합니다. 화면을 끄거나 다른 탭으로 이동하지 마세요.'
+      : '사진: 브라우저에서 처리하며 외부 서버로 업로드하지 않습니다.';
+  }
+  function clearOutput() {
+    if (state.outputURL) URL.revokeObjectURL(state.outputURL);
+    state.outputURL = null;
+    state.extension = null;
+    ui.result.innerHTML = '<div class="placeholder">변환하면 결과가 나타납니다.</div>';
+    ui.resultSize.textContent = '';
+    ui.resultDescription.textContent = '';
+    ui.actions.classList.remove('show');
+    ui.progress.classList.remove('show');
+    untell();
+  }
+  function clearInput() {
+    if (state.busy) return;
+    clearOutput();
+    if (state.inputURL) URL.revokeObjectURL(state.inputURL);
+    state.inputURL = null;
+    state.file = null;
+    state.kind = null;
+    state.dimensions = null;
+    ui.input.value = '';
+    ui.original.replaceChildren();
+    ui.current.classList.remove('show');
+    ui.preview.classList.remove('show');
+    refreshUI();
+  }
+  function makePreview(url, kind) {
+    const el = document.createElement(kind === 'video' ? 'video' : 'img');
+    el.src = url;
+    if (kind === 'video') {
+      el.controls = true;
+      el.playsInline = true;
+      el.preload = 'metadata';
+      el.setAttribute('webkit-playsinline', '');
+    } else {
+      el.alt = '선택한 사진';
+    }
+    return el;
+  }
+  async function selectFile(file) {
+    if (!file || state.busy) return;
+    clearInput();
+    const suffix = (file.name.split('.').pop() || '').toLowerCase();
+    const photoExt = ['jpg', 'jpeg', 'png', 'webp', 'bmp'];
+    const videoExt = ['mp4', 'mov', 'm4v', 'webm'];
+    if (photoExt.includes(suffix) && (file.type.startsWith('image/') || !file.type)) state.kind = 'image';
+    else if (videoExt.includes(suffix) && (file.type.startsWith('video/') || !file.type)) state.kind = 'video';
+    else {
+      tell('지원 형식을 확인해 주세요. 사진 JPG/PNG/WEBP/BMP 또는 영상 MP4/MOV/WEBM 파일을 선택해 주세요.', 'error');
+      return;
+    }
+    state.file = file;
+    state.inputURL = URL.createObjectURL(file);
+    ui.fileName.textContent = file.name;
+    ui.fileMeta.textContent = sizeText(file.size);
+    ui.fileIcon.textContent = state.kind === 'video' ? '▶' : '▣';
+    ui.current.classList.add('show');
+    try {
+      const element = makePreview(state.inputURL, state.kind);
+      if (state.kind === 'image') {
+        await new Promise((resolve, reject) => { element.onload = resolve; element.onerror = reject; });
+        state.dimensions = [element.naturalWidth, element.naturalHeight];
+      } else {
+        await new Promise((resolve, reject) => {
+          element.onloadedmetadata = resolve; element.onerror = reject;
+        });
+        state.dimensions = [element.videoWidth, element.videoHeight];
+      }
+      if (!state.dimensions[0] || !state.dimensions[1]) throw Error('해상도를 읽지 못했습니다.');
+      ui.original.replaceChildren(element);
+      ui.originalSize.textContent = state.dimensions.join('×');
+      ui.fileMeta.textContent = sizeText(file.size) + ' · ' + state.dimensions.join('×');
+      ui.preview.classList.add('show');
+      clearOutput();
+      refreshUI();
+    } catch (error) {
+      clearInput();
+      tell('브라우저에서 이 파일을 재생하거나 읽지 못했습니다. 다른 형식으로 변환 후 다시 시도해 주세요.', 'error');
+    }
+  }
+
+  function ensureCanvas(canvas, dimensions) {
+    const [w, h] = dimensions;
+    if (w * h > 34000000) throw Error('목표 해상도가 이 프로그램의 최대 화소 수를 초과했습니다.');
+    canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext('2d', { alpha: false });
+    if (!ctx) throw Error('이 기기에서는 선택한 해상도의 캔버스를 만들 수 없습니다.');
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    return ctx;
+  }
+  function resultPreview(blob, extension, description, dimensions) {
+    if (!blob || !blob.size) throw Error('결과 파일이 비어 있습니다.');
+    if (state.outputURL) URL.revokeObjectURL(state.outputURL);
+    state.outputURL = URL.createObjectURL(blob);
+    state.extension = extension;
+    ui.result.replaceChildren(makePreview(state.outputURL, state.kind));
+    ui.resultSize.textContent = dimensions ? dimensions.join('×') : selectedQuality().toUpperCase();
+    ui.resultDescription.textContent = description + ' · ' + sizeText(blob.size);
+    ui.actions.classList.add('show');
+    tell('변환 완료! 결과를 확인하고 [파일 저장]을 눌러 주세요.', 'info');
+  }
+  async function convertPhoto() {
+    const dimensions = targetDimensions();
+    const [w, h] = dimensions;
+    report('사진 확대 준비 중', 10);
+    await delay(25);
+    const source = ui.original.querySelector('img');
+    const canvas = document.createElement('canvas');
+    let context;
+    try {
+      context = ensureCanvas(canvas, dimensions);
+      report('해상도 확대·보정 중', 46, '결과: ' + pretty(w) + ' × ' + pretty(h));
+      await delay(25);
+      const format = ui.format.value;
+      context.fillStyle = '#fff';
+      context.fillRect(0, 0, w, h);
+      if (ui.enhance.checked) context.filter = 'contrast(1.04) saturate(1.06)';
+      context.drawImage(source, 0, 0, w, h);
+      context.filter = 'none';
+      if (state.cancelled) throw Error('취소됨');
+      report('사진 인코딩 중', 85);
+      await delay(25);
+      const type = format === 'jpg' ? 'image/jpeg' : 'image/png';
+      const blob = await new Promise((resolve, reject) => {
+        canvas.toBlob(value => value ? resolve(value) : reject(Error('이미지 저장에 실패했습니다. 메모리가 부족할 수 있습니다.')), type, 0.95);
+      });
+      if (state.cancelled) throw Error('취소됨');
+      resultPreview(blob, format, '브라우저 사진 확대·보정', dimensions);
+      report('완료', 100);
+    } finally {
+      canvas.width = canvas.height = 0;
+    }
+  }
+
+  function findMediaRecorder() {
+    if (!('MediaRecorder' in window)) throw Error('이 브라우저에서 영상 녹화 기능(MediaRecorder)을 지원하지 않습니다.');
+    const types = [
+      'video/mp4;codecs="avc1.42E01E,mp4a.40.2"',
+      'video/mp4;codecs="avc1.42E01E"',
+      'video/mp4',
+      'video/webm;codecs=vp9,opus',
+      'video/webm;codecs=vp8,opus',
+      'video/webm'
+    ];
+    return types.find(type => MediaRecorder.isTypeSupported(type)) || '';
+  }
+  function videoBitrate(w, h) {
+    const pixels = w * h;
+    return Math.min(50000000, Math.max(3500000, Math.round(pixels / (1920 * 1080) * 8000000)));
+  }
+  async function convertVideo() {
+    if (!HTMLCanvasElement.prototype.captureStream) {
+      throw Error('이 브라우저는 캔버스 영상 캡처를 지원하지 않습니다. 최신 Chrome 또는 Safari에서 사용해 주세요.');
+    }
+    const type = findMediaRecorder();
+    if (!type) throw Error('사용 가능한 영상 저장 형식이 없습니다.');
+    const player = ui.original.querySelector('video');
+    if (!player || !Number.isFinite(player.duration) || player.duration <= 0) {
+      throw Error('영상 길이를 확인할 수 없습니다. MP4 등의 일반 영상으로 다시 시도해 주세요.');
+    }
+    const outputSize = targetDimensions();
+    const canvas = document.createElement('canvas');
+    const ctx = ensureCanvas(canvas, outputSize);
+    const [w, h] = outputSize;
+    let stream, recorder, audioContext = null;
+    let note = '원본 소리는 브라우저 및 형식에 따라 보존되지 않을 수 있습니다.';
+    let onDone;
+    const done = new Promise((resolve, reject) => { onDone = (error) => error ? reject(error) : resolve(); });
+    let completed = false;
+    const finish = error => { if (!completed) { completed = true; onDone(error); } };
+    let chunks = [];
+    try {
+      ctx.fillStyle = '#000'; ctx.fillRect(0, 0, w, h);
+      stream = canvas.captureStream(30);
+      if (ui.audio.checked) {
+        try {
+          const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+          if (AudioContextClass) {
+            audioContext = new AudioContextClass();
+            const source = audioContext.createMediaElementSource(player);
+            const destination = audioContext.createMediaStreamDestination();
+            source.connect(destination); // 스피커로 보내지 않고 녹화 스트림에만 연결
+            for (const track of destination.stream.getAudioTracks()) stream.addTrack(track);
+            audioContext.resume().catch(() => {});
+            note = '원본 음성 보존을 시도했습니다. 저장 후 소리를 확인해 주세요.';
+          }
+        } catch (_) {
+          note = '이 브라우저에서는 음성 캡처에 실패해 무음으로 변환될 수 있습니다.';
+        }
+      } else {
+        player.muted = true;
+        note = '음성 제외 옵션으로 저장합니다.';
+      }
+      try {
+        recorder = new MediaRecorder(stream, {
+          mimeType: type, videoBitsPerSecond: videoBitrate(w, h)
+        });
+      } catch (error) {
+        if (stream.getAudioTracks().length) {
+          stream.getAudioTracks().forEach(track => { stream.removeTrack(track); track.stop(); });
+          recorder = new MediaRecorder(stream, { mimeType: type });
+          note = '영상 코덱과 오디오의 조합을 지원하지 않아 무음으로 저장합니다.';
+        } else throw error;
+      }
+      state.recorder = recorder;
+      state.stopPlayback = () => { player.pause(); finish(new Error('취소됨')); };
+      recorder.ondataavailable = event => { if (event.data?.size) chunks.push(event.data); };
+      recorder.onerror = event => finish(new Error(event.error?.message || '영상 녹화에 실패했습니다.'));
+      const stopped = new Promise(resolve => recorder.addEventListener('stop', resolve, { once: true }));
+      player.addEventListener('ended', () => finish(), { once: true });
+      player.addEventListener('error', () => finish(new Error('원본 영상을 재생할 수 없습니다.')), { once: true });
+      player.currentTime = 0;
+      let lastUI = 0;
+      function paint(now) {
+        if (state.cancelled || completed) return;
+        if (player.readyState >= 2) {
+          ctx.filter = ui.enhance.checked ? 'contrast(1.04) saturate(1.05)' : 'none';
+          ctx.drawImage(player, 0, 0, w, h);
+          ctx.filter = 'none';
+        }
+        if (now - lastUI > 250) {
+          const ratio = Math.max(0, Math.min(1, player.currentTime / player.duration));
+          report('영상 재생·녹화 중', Math.round(ratio * 95),
+            Math.floor(player.currentTime) + '초 / ' + Math.ceil(player.duration) + '초 · ' + note);
+          lastUI = now;
+        }
+        state.raf = requestAnimationFrame(paint);
+      }
+      report('영상 녹화 준비 중', 2, '영상 길이만큼 변환 시간이 걸립니다. 탭을 열어 두세요.');
+      recorder.start(1000);
+      state.raf = requestAnimationFrame(paint);
+      // 모바일 Safari에서도 사용자 클릭으로 시작한 비디오 재생을 이용합니다.
+      const playing = player.play();
+      await playing;
+      await done;
+      if (recorder.state !== 'inactive') recorder.stop();
+      await stopped;
+      if (state.cancelled) throw Error('취소됨');
+      const mime = recorder.mimeType || type;
+      const ext = mime.includes('mp4') ? 'mp4' : 'webm';
+      const blob = new Blob(chunks, { type: mime });
+      resultPreview(blob, ext, '브라우저 영상 확대·변환 · ' + note, outputSize);
+      report('완료', 100);
+    } finally {
+      if (state.raf) cancelAnimationFrame(state.raf);
+      state.raf = 0;
+      player.pause();
+      if (recorder && recorder.state !== 'inactive') {
+        try { recorder.stop(); } catch (_) {}
+      }
+      if (stream) stream.getTracks().forEach(track => track.stop());
+      if (audioContext) audioContext.close().catch(() => {});
+      canvas.width = canvas.height = 0;
+      chunks = [];
+      state.recorder = null;
+      state.stopPlayback = null;
+      // createMediaElementSource로 연결된 미리보기 영상은 재생음을 복구하기 위해 교체합니다.
+      if (state.inputURL && state.kind === 'video') ui.original.replaceChildren(makePreview(state.inputURL, 'video'));
+    }
+  }
+
+  async function start() {
+    if (state.busy) return;
+    if (!state.file || !state.dimensions) return tell('사진 또는 영상을 먼저 업로드해 주세요.', 'error');
+    clearOutput();
+    state.busy = true;
+    state.cancelled = false;
+    refreshUI();
+    try {
+      if (state.kind === 'image') await convertPhoto();
+      else await convertVideo();
+    } catch (error) {
+      if (state.cancelled || error?.message === '취소됨' || error?.name === 'AbortError') {
+        tell('변환을 취소했습니다.', 'info');
+      } else {
+        tell('변환 실패: ' + (error?.message || String(error)) + '\n8K가 실패하면 4K 또는 1080p로 다시 시도해 보세요.', 'error');
+      }
+    } finally {
+      state.busy = false;
+      state.cancelled = false;
+      state.stopPlayback = null;
+      ui.progress.classList.remove('show');
+      refreshUI();
+    }
+  }
+  function cancel() {
+    if (!state.busy) return;
+    state.cancelled = true;
+    if (state.stopPlayback) state.stopPlayback();
+    report('취소하는 중', 0);
+  }
+  function saveResult() {
+    if (!state.outputURL) return;
+    const a = document.createElement('a');
+    a.href = state.outputURL;
+    a.download = 'UPSCALE_' + selectedQuality().toUpperCase() + '_' + Date.now() + '.' + state.extension;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  }
+  ui.input.addEventListener('change', event => selectFile(event.target.files?.[0]));
+  ui.clear.addEventListener('click', clearInput);
+  ui.start.addEventListener('click', start);
+  ui.cancel.addEventListener('click', cancel);
+  ui.save.addEventListener('click', saveResult);
+  ui.open.addEventListener('click', () => { if (state.outputURL) window.open(state.outputURL, '_blank', 'noopener,noreferrer'); });
+  for (const element of document.querySelectorAll('input[name="quality"],#format,#enhance,#audio')) {
+    element.addEventListener('change', () => { if (!state.busy) { clearOutput(); refreshUI(); } });
+  }
+  for (const event of ['dragenter', 'dragover']) {
+    ui.drop.addEventListener(event, e => { e.preventDefault(); ui.drop.classList.add('drag'); });
+  }
+  for (const event of ['dragleave', 'drop']) {
+    ui.drop.addEventListener(event, e => { e.preventDefault(); ui.drop.classList.remove('drag'); });
+  }
+  ui.drop.addEventListener('drop', event => { if (event.dataTransfer?.files?.length) selectFile(event.dataTransfer.files[0]); });
+  window.addEventListener('pagehide', () => {
+    if (state.inputURL) URL.revokeObjectURL(state.inputURL);
+    if (state.outputURL) URL.revokeObjectURL(state.outputURL);
+  });
+  refreshUI();
+})();
+</script>
+</body>
+</html>
+
