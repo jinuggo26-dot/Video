@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#080d1b">
-<title>UPSCALE STUDIO | 사진·영상 화질 개선</title>
+<title>UPSCALE STUDIO | 사진·영상 해상도 변환</title>
 <style>
 :root{--bg:#080d1b;--panel:#10182b;--panel2:#151f34;--line:#293854;--muted:#9caac3;--text:#eff5ff;--accent:#7699ff;--accent2:#51d9c9;--bad:#ff8f99;--round:20px}
 *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:radial-gradient(ellipse 90% 38% at 50% -5%,#1a3461 0,transparent 78%),var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans KR",sans-serif;line-height:1.55;-webkit-tap-highlight-color:transparent}button,input,select{font:inherit}button{cursor:pointer}button:disabled{opacity:.48;cursor:not-allowed}button:focus-visible,.choice:focus-within,.drop:focus-within{outline:2px solid #8baaff;outline-offset:3px}a{color:var(--accent)}.shell{max-width:1140px;margin:auto;padding:24px 22px 70px}
@@ -21,6 +21,10 @@
 .video-help{margin-top:16px;line-height:1.65;font-size:12px;color:#b6c7e4;border:1px solid #31435f;background:#13213a;border-radius:12px;padding:13px}
 @media(max-width:860px){.cols .left{order:0}.cols .right{order:1}}
 @media(max-width:480px){.quality-ui{padding:11px 3px}.quality-ui strong{font-size:15px}.row-actions .btn{font-size:12px}}
+/* 모바일에서 버튼을 넉넉하게 배치합니다. 공유·저장을 가장 눈에 띄게 표시합니다. */
+.output-actions.show{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.output-actions #saveBtn{grid-column:1 / -1}
+.output-actions .btn{width:100%}
 </style>
 </head>
 <body>
@@ -30,8 +34,8 @@
     <div class="status"><span class="dot ok"></span><span>GitHub Pages · 단일 HTML</span></div>
   </header>
   <section class="hero"><span class="eyebrow">PHOTO & VIDEO UPSCALER</span>
-    <h1>더 크고, <span>더 선명하게.</span></h1>
-    <p>별도 설치 없이 사진과 영상을 1080p · 4K · 8K 해상도로 확대하세요.</p>
+    <h1>해상도는 높이고, <span>안정성까지.</span></h1>
+    <p>사진은 메모리를 절약하며 확대하고, 영상은 브라우저에서 변환합니다.</p>
   </section>
 
   <main class="cols">
@@ -56,14 +60,16 @@
           <div><div class="preview-label"><span>변환 결과</span><span id="resultSize"></span></div><div class="preview-frame" id="resultPreview"><div class="placeholder">변환하면 결과가 나타납니다.</div></div></div>
         </div>
         <div class="output-actions" id="outputActions">
-          <button class="btn btn-primary" id="saveBtn" type="button">↓ 파일 저장</button>
+          <button class="btn btn-primary" id="saveBtn" type="button">↗ 공유·저장 창 열기</button>
+          <button class="btn btn-secondary" id="downloadBtn" type="button">↓ 바로 다운로드</button>
           <button class="btn btn-secondary" id="openBtn" type="button">새 창에서 열기</button>
         </div>
+        <p class="feature-hint">삼성·아이패드에서는 공유 창에서 갤러리·사진 앱 또는 파일에 저장을 선택하세요. 지원하지 않는 브라우저에서는 다운로드됩니다.</p>
         <p class="feature-hint" id="resultDescription"></p>
       </section>
     </section>
 
-    <section class="card right" aria-label="화질 개선 설정">
+    <section class="card right" aria-label="해상도 변환 설정">
       <h2>03. 출력 설정</h2>
       <div class="setting-group">
         <div class="setting-label">해상도 선택 <span class="hint" id="targetText">비율 유지</span></div>
@@ -72,7 +78,7 @@
           <label class="choice"><input type="radio" name="quality" value="4k"><span class="quality-ui"><strong>4K</strong><small>3840×2160</small></span></label>
           <label class="choice"><input type="radio" name="quality" value="8k"><span class="quality-ui"><strong>8K</strong><small>7680×4320</small></span></label>
         </div>
-        <p class="feature-hint">영상과 사진 모두 원본 비율을 유지합니다. 선택한 값은 16:9 기준 최대 해상도입니다.</p>
+        <p class="feature-hint">원본 가로·세로 비율 유지 · 16:9 기준 최대 해상도. 해상도만 늘려서는 없던 세부 정보가 복원되지 않습니다.</p>
       </div>
       <div class="setting-group">
         <div class="setting-label">추가 설정</div>
@@ -85,7 +91,7 @@
           <select id="format"><option value="png">PNG</option><option value="jpg">JPG</option></select>
         </div>
       </div>
-      <button class="btn btn-primary start" id="startBtn" type="button">✦ 화질 개선 시작</button>
+      <button class="btn btn-primary start" id="startBtn" type="button">✦ 해상도 변환 시작</button>
       <div class="row-actions"><button id="cancelBtn" class="btn btn-secondary" type="button" disabled>변환 취소</button></div>
       <div class="progress" id="progress">
         <div class="progress-title"><span id="stage">준비 중</span><span id="percent">0%</span></div>
@@ -97,8 +103,8 @@
     </section>
   </main>
   <section class="below" aria-label="안내">
-    <div class="info"><strong>🔒 파일은 기기 안에서 처리</strong><p>GitHub Pages에서도 작동합니다. 사진 출력은 PNG/JPG, 영상 출력은 브라우저 지원에 따라 MP4 또는 WEBM입니다.</p></div>
-    <div class="info"><strong>ℹ️ 4K·8K 영상의 한계</strong><p>영상은 실시간으로 다시 녹화합니다. 기기 성능에 따라 프레임 누락·오디오 문제·실패가 발생할 수 있습니다. 해상도를 늘려도 원본의 세부 정보까지 복원되지는 않습니다.</p></div>
+    <div class="info"><strong>🔒 파일은 기기 안에서 처리</strong><p>GitHub Pages에서도 작동합니다. 사진 출력은 PNG(1080p는 JPG 선택 가능), 영상 출력은 지원하는 브라우저에서 MP4 또는 WEBM입니다.</p></div>
+    <div class="info"><strong>ℹ️ 4K·8K 영상의 한계</strong><p>사진의 4K·8K는 메모리 절약 PNG 방식으로 저장합니다. 4K 영상은 기기 성능에 따라 제한되고, 8K 영상은 브라우저만으로 안정적인 변환을 보장할 수 없어 차단합니다.</p></div>
   </section>
   <div class="footer">UPSCALE STUDIO · HTML 1개 파일 · 기기 내 처리</div>
 </div>
@@ -111,7 +117,7 @@
     fileName: $('fileName'), fileMeta: $('fileMeta'), fileIcon: $('fileIcon'),
     clear: $('clearBtn'), preview: $('previewSection'), original: $('originalPreview'),
     result: $('resultPreview'), originalSize: $('originalSize'), resultSize: $('resultSize'),
-    actions: $('outputActions'), save: $('saveBtn'), open: $('openBtn'),
+    actions: $('outputActions'), save: $('saveBtn'), download: $('downloadBtn'), open: $('openBtn'),
     resultDescription: $('resultDescription'), target: $('targetText'),
     enhance: $('enhance'), audio: $('audio'), audioOption: $('audioOption'),
     format: $('format'), imageFormat: $('imageFormat'),
@@ -125,7 +131,8 @@
   };
   const state = {
     file: null, kind: null, dimensions: null, inputURL: null, outputURL: null,
-    extension: null, busy: false, cancelled: false, recorder: null,
+    outputBlob: null, outputFileName: null, extension: null,
+    busy: false, cancelled: false, recorder: null,
     stopPlayback: null, raf: 0
   };
 
@@ -166,6 +173,10 @@
   function refreshUI() {
     const isVideo = state.kind === 'video';
     ui.imageFormat.style.display = isVideo ? 'none' : '';
+    const highResPhoto = !isVideo && selectedQuality() !== '1080p';
+    const jpgOption = ui.format.querySelector('option[value="jpg"]');
+    jpgOption.disabled = highResPhoto;
+    if (highResPhoto && ui.format.value === 'jpg') ui.format.value = 'png';
     ui.audioOption.style.display = isVideo ? '' : 'none';
     const d = targetDimensions();
     ui.target.textContent = d ? pretty(d[0]) + ' × ' + pretty(d[1]) : '비율 유지';
@@ -175,14 +186,18 @@
     ui.input.disabled = state.busy;
     document.querySelectorAll('input[name="quality"],#format,#enhance,#audio')
       .forEach(input => input.disabled = state.busy);
-    ui.start.textContent = state.busy ? '변환 중…' : '✦ 화질 개선 시작';
+    ui.start.textContent = state.busy ? '변환 중…' : '✦ 해상도 변환 시작';
     ui.notice.textContent = isVideo
-      ? '영상: 브라우저가 실시간으로 재녹화합니다. 화면을 끄거나 다른 탭으로 이동하지 마세요.'
-      : '사진: 브라우저에서 처리하며 외부 서버로 업로드하지 않습니다.';
+      ? '영상은 실시간 재녹화됩니다. 모바일 4K·모든 8K 영상은 브라우저 메모리/인코더 제한으로 변환을 차단합니다.'
+      : highResPhoto
+        ? '4K·8K 사진은 메모리 절약 방식으로 PNG 저장합니다. 파일 형식은 PNG로 고정됩니다.'
+        : '사진은 기기에서 변환합니다. JPEG는 투명 배경이 흰색으로 저장됩니다.';
   }
   function clearOutput() {
     if (state.outputURL) URL.revokeObjectURL(state.outputURL);
     state.outputURL = null;
+    state.outputBlob = null;
+    state.outputFileName = null;
     state.extension = null;
     ui.result.innerHTML = '<div class="placeholder">변환하면 결과가 나타납니다.</div>';
     ui.resultSize.textContent = '';
@@ -260,70 +275,195 @@
     }
   }
 
-  function ensureCanvas(canvas, dimensions) {
+  // 큰 캔버스를 무턱대고 만들면 모바일 브라우저가 종료될 수 있습니다.
+  function ensureCanvas(canvas, dimensions, limit = 2400000) {
     const [w, h] = dimensions;
-    if (w * h > 34000000) throw Error('목표 해상도가 이 프로그램의 최대 화소 수를 초과했습니다.');
-    canvas.width = w; canvas.height = h;
-    const ctx = canvas.getContext('2d', { alpha: false });
-    if (!ctx) throw Error('이 기기에서는 선택한 해상도의 캔버스를 만들 수 없습니다.');
+    if (w <= 0 || h <= 0 || w * h > limit) {
+      throw Error('이 모드에서는 한 번에 너무 큰 캔버스를 만들 수 없습니다.');
+    }
+    canvas.width = w;
+    canvas.height = h;
+    if (canvas.width !== w || canvas.height !== h) throw Error('기기가 목표 크기의 캔버스를 지원하지 않습니다.');
+    const ctx = canvas.getContext('2d', { alpha: true });
+    if (!ctx) throw Error('이 기기에서 사진 처리를 시작할 수 없습니다.');
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
     return ctx;
   }
+
+  function makeCrcTable() {
+    const table = new Uint32Array(256);
+    for (let n = 0; n < 256; n++) {
+      let c = n;
+      for (let i = 0; i < 8; i++) c = c & 1 ? (0xedb88320 ^ (c >>> 1)) : (c >>> 1);
+      table[n] = c >>> 0;
+    }
+    return table;
+  }
+  const crcTable = makeCrcTable();
+  function pngChunk(type, data) {
+    const name = new TextEncoder().encode(type);
+    const out = new Uint8Array(data.length + 12);
+    const dv = new DataView(out.buffer);
+    dv.setUint32(0, data.length);
+    out.set(name, 4);
+    out.set(data, 8);
+    let crc = 0xffffffff;
+    for (let i = 4; i < out.length - 4; i++) crc = crcTable[(crc ^ out[i]) & 255] ^ (crc >>> 8);
+    dv.setUint32(out.length - 4, (crc ^ 0xffffffff) >>> 0);
+    return out;
+  }
+
+  // PNG의 각 행을 작은 캔버스로 만들고 DEFLATE 스트림에 흘려보냅니다.
+  // 대형(8K) 출력 전체 크기의 2D 캔버스가 필요하지 않습니다.
+  async function encodeLargePng(source, w, h) {
+    if (typeof CompressionStream !== 'function') {
+      throw Error('이 브라우저는 메모리 절약 PNG 저장을 지원하지 않습니다. Chrome 또는 최신 Safari에서 열어 주세요.');
+    }
+    const header = new Uint8Array(13);
+    const dv = new DataView(header.buffer);
+    dv.setUint32(0, w);
+    dv.setUint32(4, h);
+    header[8] = 8;    // bit depth
+    header[9] = 6;    // RGBA
+    const parts = [new Uint8Array([137,80,78,71,13,10,26,10]), pngChunk('IHDR', header)];
+    const compressor = new CompressionStream('deflate');
+    const writer = compressor.writable.getWriter();
+    const reader = compressor.readable.getReader();
+    let outputBytes = 0;
+    const collecting = (async () => {
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        if (value?.byteLength) {
+          outputBytes += value.byteLength;
+          // 출력 파일이 지나치게 큰 경우에도 앱이 강제 종료되기 전에 중단합니다.
+          if (outputBytes > 210 * 1024 * 1024) throw Error('PNG 결과가 210MB를 넘어 중단했습니다. 더 낮은 해상도를 선택해 주세요.');
+          parts.push(pngChunk('IDAT', value));
+        }
+      }
+    })();
+    // 읽는 쪽의 오류도 쓰기 쪽에 전달하고, 미처리 Promise rejection을 막습니다.
+    collecting.catch(() => { try { writer.abort(); } catch (_) {} });
+    const tile = document.createElement('canvas');
+    const rowsPerTile = Math.max(8, Math.min(64, Math.floor(300000 / w)));
+    const sw = source.naturalWidth;
+    const sh = source.naturalHeight;
+    let doneWrite = false;
+    try {
+      tile.width = w;
+      tile.height = rowsPerTile;
+      const ctx = tile.getContext('2d', { willReadFrequently: true, alpha: true });
+      if (!ctx || tile.width !== w) throw Error('작업용 작은 캔버스를 만들 수 없습니다.');
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      if (ui.enhance.checked) ctx.filter = 'contrast(1.04) saturate(1.06)';
+      for (let top = 0; top < h; top += rowsPerTile) {
+        if (state.cancelled) throw Error('취소됨');
+        const rows = Math.min(rowsPerTile, h - top);
+        ctx.clearRect(0, 0, w, rowsPerTile);
+        // 각 줄의 원본 영역만 확대합니다. 8K 전체 캔버스는 생성하지 않습니다.
+        // 경계에서 잘리지 않도록 원본 위아래 2픽셀을 더 가져와 보간합니다.
+        // 이 여유가 없으면 타일 사이에 가로 줄무늬가 생길 수 있습니다.
+        const srcTop = Math.max(0, top * sh / h - 2);
+        const srcBottom = Math.min(sh, (top + rows) * sh / h + 2);
+        const destTop = srcTop * h / sh - top;
+        const destHeight = (srcBottom - srcTop) * h / sh;
+        ctx.drawImage(source, 0, srcTop, sw, srcBottom - srcTop, 0, destTop, w, destHeight);
+        const pixels = ctx.getImageData(0, 0, w, rows).data;
+        const packed = new Uint8Array(rows * (1 + 4 * w));
+        const stride = w * 4;
+        for (let r = 0; r < rows; r++) {
+          packed.set(pixels.subarray(r * stride, (r + 1) * stride), r * (stride + 1) + 1);
+        }
+        await writer.write(packed);
+        report('사진을 구간별로 변환 중', 5 + 85 * (top + rows) / h,
+          pretty(w) + ' × ' + pretty(h) + ' · ' + Math.round((top + rows) * 100 / h) + '%');
+        if (top % (rowsPerTile * 5) === 0) await delay(0);
+      }
+      await writer.close();
+      doneWrite = true;
+      await collecting;
+      if (state.cancelled) throw Error('취소됨');
+      parts.push(pngChunk('IEND', new Uint8Array(0)));
+      return new Blob(parts, { type: 'image/png' });
+    } finally {
+      tile.width = tile.height = 0;
+      if (!doneWrite) { try { await writer.abort(); } catch (_) {} }
+      try { await collecting; } catch (_) {} // writer 실패 시 보류된 수집도 마무리
+    }
+  }
+
   function resultPreview(blob, extension, description, dimensions) {
     if (!blob || !blob.size) throw Error('결과 파일이 비어 있습니다.');
     if (state.outputURL) URL.revokeObjectURL(state.outputURL);
     state.outputURL = URL.createObjectURL(blob);
+    // 공유 창을 띄우기 전에 결과 Blob을 보존해야 합니다.
+    // 클릭 순간에 fetch/await가 들어가면 iOS Safari가 공유 창을 차단할 수 있습니다.
+    state.outputBlob = blob;
+    state.outputFileName = 'UPSCALE_' + selectedQuality().toUpperCase() + '_' + Date.now() + '.' + extension;
     state.extension = extension;
-    ui.result.replaceChildren(makePreview(state.outputURL, state.kind));
+    const highResImage = state.kind === 'image' && dimensions && dimensions[0] * dimensions[1] > 5000000;
+    // 결과물의 8K 이미지를 다시 DOM에 디코딩하면 모바일 메모리가 부족해질 수 있습니다.
+    const visualURL = highResImage ? state.inputURL : state.outputURL;
+    const preview = makePreview(visualURL, state.kind);
+    if (highResImage) {
+      if (ui.enhance.checked) preview.style.filter = 'contrast(1.04) saturate(1.06)';
+      preview.alt = '출력 결과를 간략히 표시하는 원본 기반 축소 미리보기';
+    }
+    ui.result.replaceChildren(preview);
     ui.resultSize.textContent = dimensions ? dimensions.join('×') : selectedQuality().toUpperCase();
-    ui.resultDescription.textContent = description + ' · ' + sizeText(blob.size);
+    ui.resultDescription.textContent = description + ' · ' + sizeText(blob.size) +
+      (highResImage ? ' · 메모리 절약을 위해 축소 미리보기만 표시' : '');
     ui.actions.classList.add('show');
-    tell('변환 완료! 결과를 확인하고 [파일 저장]을 눌러 주세요.', 'info');
+    tell('변환 완료! [공유·저장 창 열기]를 누르면 기기의 저장·공유 창을 열 수 있습니다.', 'info');
   }
+
   async function convertPhoto() {
     const dimensions = targetDimensions();
     const [w, h] = dimensions;
-    report('사진 확대 준비 중', 10);
-    await delay(25);
     const source = ui.original.querySelector('img');
-    const canvas = document.createElement('canvas');
-    let context;
-    try {
-      context = ensureCanvas(canvas, dimensions);
-      report('해상도 확대·보정 중', 46, '결과: ' + pretty(w) + ' × ' + pretty(h));
-      await delay(25);
-      const format = ui.format.value;
-      context.fillStyle = '#fff';
-      context.fillRect(0, 0, w, h);
-      if (ui.enhance.checked) context.filter = 'contrast(1.04) saturate(1.06)';
-      context.drawImage(source, 0, 0, w, h);
-      context.filter = 'none';
-      if (state.cancelled) throw Error('취소됨');
-      report('사진 인코딩 중', 85);
-      await delay(25);
-      const type = format === 'jpg' ? 'image/jpeg' : 'image/png';
-      const blob = await new Promise((resolve, reject) => {
-        canvas.toBlob(value => value ? resolve(value) : reject(Error('이미지 저장에 실패했습니다. 메모리가 부족할 수 있습니다.')), type, 0.95);
-      });
-      if (state.cancelled) throw Error('취소됨');
-      resultPreview(blob, format, '브라우저 사진 확대·보정', dimensions);
-      report('완료', 100);
-    } finally {
-      canvas.width = canvas.height = 0;
+    if (!source || !source.complete || !source.naturalWidth) throw Error('원본 이미지를 읽지 못했습니다.');
+    report('사진 처리 시작', 3, pretty(w) + ' × ' + pretty(h));
+    await delay(0);
+    if (w * h > 34000000) throw Error('출력 해상도가 34MP를 초과했습니다.');
+    let blob;
+    let ext = ui.format.value;
+    if (w * h > 2400000) {
+      ext = 'png';
+      blob = await encodeLargePng(source, w, h);
+    } else {
+      const canvas = document.createElement('canvas');
+      try {
+        const ctx = ensureCanvas(canvas, dimensions);
+        if (ext === 'jpg') {
+          ctx.fillStyle = '#fff';
+          ctx.fillRect(0, 0, w, h);
+        }
+        if (ui.enhance.checked) ctx.filter = 'contrast(1.04) saturate(1.06)';
+        ctx.drawImage(source, 0, 0, w, h);
+        ctx.filter = 'none';
+        if (state.cancelled) throw Error('취소됨');
+        report('사진 저장 형식 처리 중', 80);
+        const type = ext === 'jpg' ? 'image/jpeg' : 'image/png';
+        blob = await new Promise((resolve, reject) => {
+          canvas.toBlob(value => value ? resolve(value) : reject(Error('이미지 인코딩에 실패했습니다.')), type, 0.92);
+        });
+      } finally { canvas.width = canvas.height = 0; }
     }
+    if (state.cancelled) throw Error('취소됨');
+    resultPreview(blob, ext, '메모리 절약 확대 · ' + ext.toUpperCase(), dimensions);
+    report('완료', 100);
   }
 
   function findMediaRecorder() {
-    if (!('MediaRecorder' in window)) throw Error('이 브라우저에서 영상 녹화 기능(MediaRecorder)을 지원하지 않습니다.');
-    const types = [
-      'video/mp4;codecs="avc1.42E01E,mp4a.40.2"',
-      'video/mp4;codecs="avc1.42E01E"',
-      'video/mp4',
-      'video/webm;codecs=vp9,opus',
-      'video/webm;codecs=vp8,opus',
-      'video/webm'
-    ];
+    if (!('MediaRecorder' in window)) throw Error('이 브라우저는 영상 녹화(MediaRecorder)를 지원하지 않습니다.');
+    const isSafari = /Safari/i.test(navigator.userAgent) && !/(Chrome|Chromium|CriOS|Edg|OPR|FxiOS)/i.test(navigator.userAgent);
+    // Chromium의 mp4 녹화는 일부 환경에서 음성이 Opus로 저장되어
+    // iPad 등의 기본 플레이어와 호환되지 않습니다. Chromium은 WebM을 우선합니다.
+    const webm = ['video/webm;codecs=vp8,opus', 'video/webm;codecs=vp9,opus', 'video/webm'];
+    const mp4 = ['video/mp4;codecs="avc1.42E01E,mp4a.40.2"', 'video/mp4;codecs="avc1.42E01E"', 'video/mp4'];
+    const types = isSafari ? [...mp4, ...webm] : [...webm, ...mp4];
     return types.find(type => MediaRecorder.isTypeSupported(type)) || '';
   }
   function videoBitrate(w, h) {
@@ -341,9 +481,17 @@
       throw Error('영상 길이를 확인할 수 없습니다. MP4 등의 일반 영상으로 다시 시도해 주세요.');
     }
     const outputSize = targetDimensions();
-    const canvas = document.createElement('canvas');
-    const ctx = ensureCanvas(canvas, outputSize);
     const [w, h] = outputSize;
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    if (w * h > 9000000) {
+      throw Error('8K 영상은 브라우저의 메모리·인코더 한계로 이 단일 파일 버전에서 지원하지 않습니다. PC 서버 방식이 필요합니다.');
+    }
+    if (isMobile && w * h > 2400000) {
+      throw Error('모바일에서 4K 영상은 브라우저가 종료될 위험이 큽니다. 이 버전은 모바일 영상 최대 1080p로 제한합니다. 사진 4K·8K는 가능합니다.');
+    }
+    const canvas = document.createElement('canvas');
+    const ctx = ensureCanvas(canvas, outputSize, 9000000);
     let stream, recorder, audioContext = null;
     let note = '원본 소리는 브라우저 및 형식에 따라 보존되지 않을 수 있습니다.';
     let onDone;
@@ -351,6 +499,7 @@
     let completed = false;
     const finish = error => { if (!completed) { completed = true; onDone(error); } };
     let chunks = [];
+    let collectedBytes = 0;
     try {
       ctx.fillStyle = '#000'; ctx.fillRect(0, 0, w, h);
       stream = canvas.captureStream(30);
@@ -386,19 +535,28 @@
       }
       state.recorder = recorder;
       state.stopPlayback = () => { player.pause(); finish(new Error('취소됨')); };
-      recorder.ondataavailable = event => { if (event.data?.size) chunks.push(event.data); };
+      recorder.ondataavailable = event => {
+        if (!event.data?.size) return;
+        collectedBytes += event.data.size;
+        if (collectedBytes > 500 * 1024 * 1024) {
+          finish(new Error('결과 영상이 500MB를 초과하여 중단했습니다. 짧은 영상을 사용해 주세요.'));
+        } else chunks.push(event.data);
+      };
       recorder.onerror = event => finish(new Error(event.error?.message || '영상 녹화에 실패했습니다.'));
       const stopped = new Promise(resolve => recorder.addEventListener('stop', resolve, { once: true }));
+      recorder.addEventListener('stop', () => finish(), { once: true });
       player.addEventListener('ended', () => finish(), { once: true });
       player.addEventListener('error', () => finish(new Error('원본 영상을 재생할 수 없습니다.')), { once: true });
       player.currentTime = 0;
       let lastUI = 0;
+      let lastFrame = -1000;
       function paint(now) {
         if (state.cancelled || completed) return;
-        if (player.readyState >= 2) {
+        if (player.readyState >= 2 && now - lastFrame >= 32) {
           ctx.filter = ui.enhance.checked ? 'contrast(1.04) saturate(1.05)' : 'none';
           ctx.drawImage(player, 0, 0, w, h);
           ctx.filter = 'none';
+          lastFrame = now;
         }
         if (now - lastUI > 250) {
           const ratio = Math.max(0, Math.min(1, player.currentTime / player.duration));
@@ -414,9 +572,11 @@
       // 모바일 Safari에서도 사용자 클릭으로 시작한 비디오 재생을 이용합니다.
       const playing = player.play();
       await playing;
-      await done;
+      let completionError = null;
+      try { await done; } catch (e) { completionError = e; }
       if (recorder.state !== 'inactive') recorder.stop();
       await stopped;
+      if (completionError) throw completionError;
       if (state.cancelled) throw Error('취소됨');
       const mime = recorder.mimeType || type;
       const ext = mime.includes('mp4') ? 'mp4' : 'webm';
@@ -455,7 +615,7 @@
       if (state.cancelled || error?.message === '취소됨' || error?.name === 'AbortError') {
         tell('변환을 취소했습니다.', 'info');
       } else {
-        tell('변환 실패: ' + (error?.message || String(error)) + '\n8K가 실패하면 4K 또는 1080p로 다시 시도해 보세요.', 'error');
+        tell('변환 실패: ' + (error?.message || String(error)) + '\n사진은 PNG 또는 1080p로 시도하고, 영상은 1080p를 권장합니다.', 'error');
       }
     } finally {
       state.busy = false;
@@ -471,20 +631,57 @@
     if (state.stopPlayback) state.stopPlayback();
     report('취소하는 중', 0);
   }
-  function saveResult() {
-    if (!state.outputURL) return;
+  // 공유 기능이 지원되지 않을 때도 저장할 수 있도록 일반 다운로드를 유지합니다.
+  function downloadResult() {
+    if (!state.outputURL || !state.outputBlob) return;
     const a = document.createElement('a');
     a.href = state.outputURL;
-    a.download = 'UPSCALE_' + selectedQuality().toUpperCase() + '_' + Date.now() + '.' + state.extension;
+    a.download = state.outputFileName || 'UPSCALE_' + Date.now() + '.' + state.extension;
     document.body.appendChild(a);
     a.click();
     a.remove();
+  }
+
+  // 반드시 실제 버튼 클릭에서 navigator.share()를 직접 호출해야 합니다.
+  // 변환된 Blob은 미리 저장해 두었으므로 클릭 중 비동기 작업을 하지 않습니다.
+  function saveResult() {
+    if (!state.outputBlob) return;
+    if (typeof navigator.share !== 'function' || typeof navigator.canShare !== 'function' || typeof File !== 'function') {
+      tell('이 브라우저는 파일 공유 창을 지원하지 않아 일반 다운로드로 저장합니다.', 'info');
+      downloadResult();
+      return;
+    }
+    const blob = state.outputBlob;
+    const type = blob.type || (state.extension === 'mp4' ? 'video/mp4'
+      : state.extension === 'webm' ? 'video/webm'
+      : state.extension === 'jpg' ? 'image/jpeg' : 'image/png');
+    const file = new File([blob], state.outputFileName, { type, lastModified: Date.now() });
+    const payload = { files: [file], title: 'UPSCALE STUDIO 변환 파일' };
+    let supported = false;
+    try { supported = navigator.canShare({ files: [file] }); } catch (_) {}
+    if (!supported) {
+      tell('이 브라우저에서는 해당 파일의 공유 창이 지원되지 않아 일반 다운로드로 저장합니다.', 'info');
+      downloadResult();
+      return;
+    }
+    // 이 줄은 클릭의 사용자 활성화가 남아 있을 때 동기적으로 실행됩니다.
+    navigator.share(payload).then(() => {
+      tell('공유 창으로 파일을 전달했습니다. 저장 앱에서 저장 여부를 확인해 주세요.', 'info');
+    }).catch(error => {
+      if (error && error.name === 'AbortError') {
+        tell('공유 창을 닫았습니다. 파일은 그대로 유지됩니다.', 'info');
+        return;
+      }
+      tell('공유 창을 열 수 없었습니다. [바로 다운로드]를 이용해 주세요. (' +
+        (error && error.message ? error.message : '브라우저 제한') + ')', 'error');
+    });
   }
   ui.input.addEventListener('change', event => selectFile(event.target.files?.[0]));
   ui.clear.addEventListener('click', clearInput);
   ui.start.addEventListener('click', start);
   ui.cancel.addEventListener('click', cancel);
   ui.save.addEventListener('click', saveResult);
+  ui.download.addEventListener('click', downloadResult);
   ui.open.addEventListener('click', () => { if (state.outputURL) window.open(state.outputURL, '_blank', 'noopener,noreferrer'); });
   for (const element of document.querySelectorAll('input[name="quality"],#format,#enhance,#audio')) {
     element.addEventListener('change', () => { if (!state.busy) { clearOutput(); refreshUI(); } });
