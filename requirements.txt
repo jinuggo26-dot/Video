@@ -1,5 +1,5 @@
-Flask==3.0.3
-opencv-python-headless==4.10.0.84
-numpy==1.26.4
-Pillow==10.4.0
-gunicorn==22.0.0
+fastapi>=0.115,<1
+uvicorn>=0.32,<1
+python-multipart>=0.0.20,<1
+numpy>=1.26,<3
+opencv-python-headless>=4.9,<5
