@@ -1,742 +1,409 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ko">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>킬로그 자동 추출</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b1426">
+<title>킬로그 자동 추출기</title>
 <style>
-*{box-sizing:border-box}
-html,body{margin:0;padding:0;background:#081425;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif}
-body{min-height:100vh}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+:root{color-scheme:dark}
+body{margin:0;background:#0b1426;color:#edf3ff;font-family:-apple-system,BlinkMacSystemFont,"Noto Sans KR",system-ui,sans-serif;font-size:15px}
 main{max-width:1120px;margin:auto;padding:20px 14px 80px}
-h1{margin:0 0 10px;font-size:clamp(22px,4.6vw,30px)}
-p{margin:8px 0;line-height:1.55}
-.sub{color:#b7c9ea;font-size:14px}
-.toolbar,.actions,.edit-top,.edit-actions,.edit-tools{display:flex;flex-wrap:wrap;gap:9px;align-items:center}
-.toolbar{margin:15px 0 12px}
-button,.pick,select,input[type=range]{font:inherit}
-button,.pick{border:0;background:#263a61;color:#fff;min-height:44px;border-radius:12px;padding:11px 14px;cursor:pointer;font-weight:800;display:inline-flex;align-items:center;justify-content:center}
-button.primary,.pick{background:#8db0ff;color:#081423}
-button.danger{background:#482737;color:#ffd1d6}
-button.ghost{background:#182741;border:1px solid #365179;color:#dfeaff}
+header{padding:8px 0 18px}
+h1{font-size:clamp(21px,4.5vw,29px);margin:0 0 12px}
+p{margin:8px 0 12px;line-height:1.55}
+.sub{color:#aec2df;font-size:14px}
+.toolbar{display:flex;flex-wrap:wrap;gap:9px;align-items:center;margin:16px 0}
+button,.pick{border:1px solid #384b6e;background:#243655;color:#fff;min-height:44px;border-radius:12px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:11px 14px;font:inherit;font-weight:750;white-space:nowrap}
+button.primary,.pick{background:#8eafff;color:#09152a;border:0}
+button.danger{background:#35223a;border-color:#714458;color:#ffccd0}
 button:disabled{opacity:.45;cursor:default}
-select{background:#12213b;color:#fff;border:1px solid #3f5e8f;min-height:42px;border-radius:10px;padding:0 10px}
-input[type=range]{width:140px}
-label.inline{display:inline-flex;align-items:center;gap:8px;color:#d7e4fb;font-size:14px;font-weight:700}
+.mode-box{display:flex;flex-wrap:wrap;gap:9px;align-items:center;margin:12px 0 14px}
+.mode-box label{font-weight:750;font-size:14px;color:#ccd9ee}
+select{background:#192a46;color:white;border:1px solid #587099;border-radius:10px;font:inherit;padding:11px 12px;min-height:44px;max-width:100%}
+#status{color:#b9d3ff;margin-top:10px;white-space:pre-wrap}
+#list{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,320px),1fr));gap:12px;margin-top:16px}
+.item{border:1px solid #324b76;border-radius:18px;padding:13px;background:#152541;min-width:0}
+.item h3{word-break:break-all;margin:0 0 9px;font-size:14px;font-weight:700}
+.orig{width:100%;height:110px;object-fit:contain;background:#0b1729;border:1px solid #2a3f61;border-radius:10px}
+.result{height:150px;background:repeating-conic-gradient(#28364c 0% 25%,#3c4c65 0% 50%) 50% / 20px 20px;border-radius:10px;display:flex;align-items:center;justify-content:center;margin-top:10px;color:#c9d8ea;overflow:hidden}
+.result img{object-fit:contain;display:block;width:100%;max-height:150px}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.actions button{min-height:40px;padding:10px 12px;font-size:13px}
+.item-status{font-size:13px;color:#b2c9e9;margin:9px 0 2px}
+.tip{color:#95a9c5;font-size:12px;margin:8px 0}
 #file{display:none}
-#status{white-space:pre-wrap;color:#c4d7fb;margin-top:10px}
-#list{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,330px),1fr));gap:12px;margin-top:16px}
-.item{background:#11203a;border:1px solid #304a74;border-radius:18px;padding:13px;min-width:0}
-.item h3{font-size:14px;margin:0 0 8px;word-break:break-all}
-.thumb{width:100%;height:110px;object-fit:contain;background:#0a1527;border:1px solid #243b60;border-radius:10px}
-.result-box{height:154px;margin-top:10px;border-radius:12px;overflow:hidden;display:flex;align-items:center;justify-content:center;background:repeating-conic-gradient(#2d3b52 0% 25%,#42536d 0% 50%) 50% / 20px 20px;border:1px solid #314866;color:#dce8fb}
-.result-box img{display:block;width:100%;height:100%;object-fit:contain}
-.item-status{font-size:13px;color:#b5caea;margin:9px 0 2px}
-.tip{font-size:12px;color:#91a8cc;margin-top:8px}
-.modal{position:fixed;inset:0;background:rgba(3,9,17,.84);display:none;align-items:center;justify-content:center;padding:16px;z-index:9999}
+
+/* 정밀 보정 모달 */
+.modal{position:fixed;inset:0;background:rgba(3,9,17,.85);display:none;align-items:center;justify-content:center;padding:12px;z-index:9999}
 .modal.show{display:flex}
-.modal-card{width:min(980px,100%);max-height:90vh;background:#0f1b31;border:1px solid #35517b;border-radius:18px;padding:14px;overflow:auto}
-.modal-card h2{margin:0 0 10px;font-size:20px}
-.edit-wrap{background:repeating-conic-gradient(#2d3b52 0% 25%,#42536d 0% 50%) 50% / 20px 20px;border:1px solid #324a73;border-radius:14px;padding:10px;overflow:auto;touch-action:none}
+.modal-card{width:min(980px,100%);max-height:94dvh;overflow:auto;background:#101c32;border:1px solid #36527b;border-radius:18px;padding:15px}
+.modal-top,.edit-tools,.edit-actions{display:flex;align-items:center;flex-wrap:wrap;gap:9px}
+.modal-top{justify-content:space-between}
+.modal h2{font-size:19px;margin:0}
+.modal .badge{background:#162943;border:1px solid #3e5a83;border-radius:8px;padding:8px;color:#c7dbfa}
+.modal .sub{margin:10px 0}
+.edit-wrap{background:repeating-conic-gradient(#233450 0% 25%,#3b4f6d 0% 50%) 50%/20px 20px;border:1px solid #37537b;border-radius:14px;padding:10px;margin:13px 0;overflow:hidden}
 #editCanvas{display:block;max-width:100%;height:auto;margin:auto;background:transparent;touch-action:none}
 .edit-tools{margin:12px 0}
-.badge{padding:9px 11px;border-radius:10px;background:#162742;border:1px solid #314b76;color:#dce8fb;font-size:13px;font-weight:700}
-.small{font-size:12px;color:#abc0e3}
-hr.sep{border:0;border-top:1px solid #29415f;margin:14px 0}
+.edit-tools label{display:flex;gap:8px;align-items:center;font-size:14px;color:#bcd0eb}
+.edit-tools input[type=range]{width:120px;accent-color:#8eafff}
+.edit-actions{margin:13px 0 0}
+.edit-actions button{min-height:40px}
+.actions button{font-size:13px;min-height:40px;padding:9px 11px}
 </style>
 </head>
 <body>
 <main>
-  <h1>킬로그 자동 추출</h1>
-  <p class="sub">기본 추출 + 배경 정리 + 장식 보호를 합친 통합 방식입니다. 추출 후 보정에서 살릴 부분은 칠해서 보호하고, 지울 부분은 배경만 지울 수 있습니다.</p>
-  <div class="toolbar">
-    <label for="file" class="pick">원본 사진 추가</label>
-    <input type="file" id="file" accept="image/png,image/jpeg,image/webp,image/*" multiple>
-    <button id="all" class="primary">전체 추출</button>
-    <button id="saveAll" class="ghost">모두 저장 / 공유</button>
-    <button id="clear" class="danger">전체 삭제</button>
-  </div>
-  <p id="status">서버 확인 중…</p>
-  <section id="list"></section>
+<header>
+<h1>킬로그 자동 추출</h1>
+<p class="sub">킬로그 추출 · 보정 · PNG 저장</p>
+<div class="toolbar">
+<label for="file" class="pick">사진 추가</label>
+<input type="file" id="file" accept="image/png,image/jpeg,image/webp,image/*" multiple>
+<button id="all" class="primary">전체 추출</button>
+<button id="saveAll">모두 저장 / 공유</button>
+<button id="clear" class="danger">전체 삭제</button>
+</div>
+<p id="status">서버 확인 중…</p>
+</header>
+<section id="list"></section>
 </main>
 
-<div id="editorModal" class="modal">
-  <div class="modal-card">
-    <div class="edit-top" style="justify-content:space-between">
-      <h2>킬로그 보정</h2>
-      <button id="closeEditor" class="ghost">닫기</button>
-    </div>
-    <p class="sub">살리기 붓은 장식이나 킬로그 부분을 보호합니다. 배경 지우기 붓은 지우고 싶은 배경 부분에 칠한 뒤 적용하면, 보호한 부분을 제외하고 배경만 지웁니다.</p>
-    <div class="edit-tools">
-      <button id="modeKeep" class="primary">살리기 붓</button>
-      <button id="modeBg" class="ghost">배경 지우기 붓</button>
-      <label class="inline">붓 크기 <input id="brushSize" type="range" min="6" max="70" value="22"></label>
-      <span id="brushLabel" class="badge">22px</span>
-      <label class="inline">배경 허용치 <input id="tolerance" type="range" min="8" max="90" value="34"></label>
-      <span id="tolLabel" class="badge">34</span>
-    </div>
-    <div class="edit-wrap">
-      <canvas id="editCanvas" width="760" height="190"></canvas>
-    </div>
-    <p class="small">같은 색이 킬로그 안에 있어도, 직접 배경으로 칠한 부분만 지우도록 만들어져 있습니다.</p>
-    <hr class="sep">
-    <div class="edit-actions">
-      <button id="applyBg" class="ghost">배경 지우기 적용</button>
-      <button id="clearPaint" class="ghost">칠한 표시만 지우기</button>
-      <button id="resetEdit" class="ghost">처음 추출본으로 되돌리기</button>
-      <button id="saveEdit" class="primary">보정 저장</button>
-    </div>
+<div id="editorModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="editTitle">
+ <div class="modal-card">
+  <div class="modal-top"><h2 id="editTitle">킬로그 보정</h2><button id="closeEditor">닫기</button></div>
+  <p class="sub">살리기: 보호할 부분에 칠하기 · 배경 지우기: 배경 위에 칠한 다음 적용</p>
+  <div class="edit-tools">
+   <button id="modeKeep" class="primary">살리기</button>
+   <button id="modeBg">배경 지우기</button>
+   <label>붓 크기 <input id="brushSize" type="range" min="4" max="70" value="22"></label>
+   <span class="badge" id="brushLabel">22px</span>
+   <label>색상 허용치 <input id="tolerance" type="range" min="5" max="90" value="30"></label>
+   <span class="badge" id="tolLabel">30</span>
   </div>
+  <div class="edit-wrap"><canvas id="editCanvas" width="760" height="190"></canvas></div>
+  <div class="edit-actions">
+   <button id="applyBg">배경 지우기 적용</button>
+   <button id="clearPaint">칠한 표시 지우기</button>
+   <button id="resetEdit">원래대로</button>
+   <button id="saveEdit" class="primary">보정 저장</button>
+  </div>
+ </div>
 </div>
 
 <script>
 'use strict';
-
-const DEFAULT_API_BASE = 'https://video-fsp5.onrender.com';
-const API_BASE = (location.hostname.endsWith('.onrender.com') ? location.origin : DEFAULT_API_BASE).replace(/\/+$/, '');
-const $ = id => document.getElementById(id);
-const items = [];
-let counter = 0;
-let processingAll = false;
-
-function serverMessage(message){
-  $('status').textContent = message;
-}
-
-function friendlyError(error){
-  const s = String(error?.message || error || '');
-  if(/Failed to fetch|NetworkError|Load failed/i.test(s)) return '서버에 연결할 수 없습니다. Render 주소와 배포 상태를 확인하세요.';
-  return s;
-}
-
+const API_BASE=(location.hostname.endsWith('.onrender.com')?location.origin:'https://video-fsp5.onrender.com').replace(/\/+$/,'');
+const $=id=>document.getElementById(id);
+const items=[];
+let counter=0;
+let processingAll=false;
+function serverMessage(message){$('status').textContent=message;}
 async function checkServer(){
-  try{
-    const r = await fetch(API_BASE + '/health', { cache:'no-store' });
-    if(!r.ok) throw new Error('HTTP ' + r.status);
-    const d = await r.json();
-    serverMessage(d.ok ? '서버 연결됨 · 통합 추출 사용 가능' : '서버 응답을 확인해 주세요.');
-  }catch(error){
-    serverMessage('서버 연결 실패: ' + friendlyError(error));
-  }
+ try{
+  const r=await fetch(API_BASE+'/health',{cache:'no-store'});
+  if(!r.ok)throw new Error('HTTP '+r.status);
+  const d=await r.json();
+  serverMessage(d.ok && (d.endpoint||'').includes('/extract-killlog') ? '서버 연결됨 · 추출 및 보정 사용 가능' : '서버 응답을 확인해 주세요.');
+ }catch(error){serverMessage('서버 연결 실패: '+(error.message||error));}
 }
 checkServer();
-
-function createButton(text, cls){
-  const b = document.createElement('button');
-  b.textContent = text;
-  b.className = cls || '';
-  return b;
-}
-
-function filename(item){
-  return item.file.name.replace(/\.[^.]+$/, '').slice(0,100) + '_killlog.png';
-}
-
-function downloadBlob(blob, name){
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = name;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 60000);
-}
-
-function canShareFiles(files){
-  try{
-    return !!(navigator.canShare && navigator.share && navigator.canShare({ files }));
-  }catch(e){
-    return false;
-  }
-}
-
-async function shareOne(item){
-  if(!item.blob) return;
-  const file = new File([item.blob], filename(item), { type:'image/png' });
-  if(canShareFiles([file])){
-    try{
-      await navigator.share({ files:[file] });
-      return;
-    }catch(error){
-      if(error?.name === 'AbortError') return;
-    }
-  }
-  downloadBlob(item.blob, filename(item));
-}
-
-function crc32(data){
-  let crc = 0xffffffff;
-  for(let i=0;i<data.length;i++){
-    crc ^= data[i];
-    for(let k=0;k<8;k++) crc = (crc & 1) ? ((crc >>> 1) ^ 0xedb88320) : (crc >>> 1);
-  }
-  return (crc ^ 0xffffffff) >>> 0;
-}
-
-function writeU16(view, at, value){ view.setUint16(at, value, true); }
-function writeU32(view, at, value){ view.setUint32(at, value >>> 0, true); }
-
-async function createZip(ready){
-  const encoder = new TextEncoder();
-  const entries = [];
-  let offset = 0;
-
-  for(const item of ready){
-    const name = encoder.encode(filename(item));
-    const data = new Uint8Array(await item.blob.arrayBuffer());
-    const crc = crc32(data);
-
-    const lh = new Uint8Array(30 + name.length);
-    const h = new DataView(lh.buffer);
-    writeU32(h,0,0x04034b50);
-    writeU16(h,4,20);
-    writeU16(h,6,0x0800);
-    writeU16(h,8,0);
-    writeU32(h,14,crc);
-    writeU32(h,18,data.length);
-    writeU32(h,22,data.length);
-    writeU16(h,26,name.length);
-    lh.set(name,30);
-
-    entries.push({ name, data, crc, lh, offset });
-    offset += lh.length + data.length;
-  }
-
-  const locals = [];
-  const centrals = [];
-
-  for(const e of entries){
-    locals.push(e.lh, e.data);
-
-    const cd = new Uint8Array(46 + e.name.length);
-    const v = new DataView(cd.buffer);
-    writeU32(v,0,0x02014b50);
-    writeU16(v,4,20);
-    writeU16(v,6,20);
-    writeU16(v,8,0x0800);
-    writeU16(v,10,0);
-    writeU32(v,16,e.crc);
-    writeU32(v,20,e.data.length);
-    writeU32(v,24,e.data.length);
-    writeU16(v,28,e.name.length);
-    writeU32(v,42,e.offset);
-    cd.set(e.name,46);
-
-    centrals.push(cd);
-  }
-
-  const centralSize = centrals.reduce((s,p) => s + p.length, 0);
-  const end = new Uint8Array(22);
-  const view = new DataView(end.buffer);
-  writeU32(view,0,0x06054b50);
-  writeU16(view,8,entries.length);
-  writeU16(view,10,entries.length);
-  writeU32(view,12,centralSize);
-  writeU32(view,16,offset);
-
-  return new Blob([...locals, ...centrals, end], { type:'application/zip' });
-}
-
+function createButton(text,cls){const b=document.createElement('button');b.textContent=text;b.className=cls||'';return b;}
 function addFile(file){
-  const root = document.createElement('article');
-  root.className = 'item';
-
-  const title = document.createElement('h3');
-  title.textContent = file.name;
-
-  const thumb = document.createElement('img');
-  thumb.className = 'thumb';
-  thumb.alt = '원본';
-  const sourceUrl = URL.createObjectURL(file);
-  thumb.src = sourceUrl;
-
-  const result = document.createElement('div');
-  result.className = 'result-box';
-  result.textContent = '추출 전';
-
-  const status = document.createElement('p');
-  status.className = 'item-status';
-  status.textContent = '대기 중';
-
-  const actions = document.createElement('div');
-  actions.className = 'actions';
-
-  const run = createButton('추출', 'primary');
-  const edit = createButton('보정', 'ghost');
-  edit.disabled = true;
-  const save = createButton('PNG 저장 / 공유', 'ghost');
-  save.disabled = true;
-  const remove = createButton('삭제', 'danger');
-
-  const tip = document.createElement('p');
-  tip.className = 'tip';
-  tip.textContent = '보정에서 살릴 부분은 칠해서 보호하고, 배경 지우기 적용으로 배경만 지울 수 있습니다.';
-
-  actions.append(run, edit, save, remove);
-  root.append(title, thumb, result, status, actions, tip);
-  $('list').append(root);
-
-  const item = {
-    id: ++counter,
-    file,
-    sourceUrl,
-    root,
-    result,
-    status,
-    run,
-    edit,
-    save,
-    remove,
-    blob:null,
-    originalBlob:null,
-    resultUrl:null,
-    removed:false
-  };
-
-  items.push(item);
-
-  run.onclick = () => processOne(item);
-  edit.onclick = () => openEditor(item);
-  save.onclick = () => shareOne(item);
-  remove.onclick = () => removeOne(item);
+ const root=document.createElement('article');root.className='item';
+ const title=document.createElement('h3');title.textContent=file.name;
+ const img=document.createElement('img');img.className='orig';img.alt='원본';
+ const sourceUrl=URL.createObjectURL(file);img.src=sourceUrl;
+ const result=document.createElement('div');result.className='result';result.textContent='추출 전';
+ const status=document.createElement('p');status.className='item-status';status.textContent='대기 중';
+ const actions=document.createElement('div');actions.className='actions';
+ const run=createButton('추출','primary');
+ const edit=createButton('보정');edit.disabled=true;
+ const save=createButton('PNG 저장 / 공유');save.disabled=true;
+ const remove=createButton('삭제','danger');
+ actions.append(run,edit,save,remove);root.append(title,img,result,status,actions);
+ $('list').append(root);
+ const item={id:++counter,file,sourceUrl,root,result,status,run,save,blob:null,resultUrl:null,removed:false};
+ item.edit=edit;item.originalBlob=null;
+ items.push(item);
+ run.onclick=()=>processOne(item);
+ edit.onclick=()=>openEditor(item);
+ save.onclick=()=>shareOne(item);
+ remove.onclick=()=>removeOne(item);
 }
-
-function removeOne(item){
-  item.removed = true;
-  URL.revokeObjectURL(item.sourceUrl);
-  if(item.resultUrl) URL.revokeObjectURL(item.resultUrl);
-  item.root.remove();
-  const idx = items.indexOf(item);
-  if(idx >= 0) items.splice(idx, 1);
+function removeOne(it){
+ it.removed=true;
+ URL.revokeObjectURL(it.sourceUrl);
+ if(it.resultUrl)URL.revokeObjectURL(it.resultUrl);
+ it.root.remove();
+ const idx=items.indexOf(it);if(idx>=0)items.splice(idx,1);
 }
-
-$('file').addEventListener('change', e => {
-  for(const file of e.target.files || []) addFile(file);
-  e.target.value = '';
-});
-
-async function processOne(item){
-  if(item.removed) return;
-  item.run.disabled = true;
-  item.status.textContent = '추출 중…';
-
-  try{
-    const form = new FormData();
-    form.append('file', item.file, item.file.name);
-
-    const response = await fetch(API_BASE + '/extract-killlog', {
-      method:'POST',
-      body:form
-    });
-
-    if(!response.ok){
-      let details = '';
-      try{
-        const data = await response.json();
-        details = data.detail || '';
-      }catch(e){}
-      throw new Error('HTTP ' + response.status + (details ? ' · ' + details : ''));
-    }
-
-    const blob = await response.blob();
-    if(!blob.type.includes('png')) throw new Error('PNG가 아닌 응답이 반환됐습니다.');
-
-    if(item.removed) return;
-    if(item.resultUrl) URL.revokeObjectURL(item.resultUrl);
-
-    item.originalBlob = blob;
-    item.blob = blob;
-    item.resultUrl = URL.createObjectURL(blob);
-
-    const pic = document.createElement('img');
-    pic.src = item.resultUrl;
-    pic.alt = '추출 결과';
-    item.result.replaceChildren(pic);
-
-    item.edit.disabled = false;
-    item.save.disabled = false;
-    item.status.textContent = '추출 완료';
-  }catch(error){
-    item.status.textContent = '추출 실패: ' + friendlyError(error);
-  }finally{
-    item.run.disabled = false;
-  }
+$('file').onchange=e=>{for(const file of e.target.files||[])addFile(file);e.target.value='';};
+function friendlyError(error){
+ const s=String(error?.message||error);
+ if(/Failed to fetch|NetworkError|Load failed/i.test(s))return '서버에 연결할 수 없습니다. Render 주소와 배포 상태를 확인하세요.';
+ return s;
 }
-
-$('all').onclick = async() => {
-  if(processingAll) return;
-  processingAll = true;
-  $('all').disabled = true;
-  try{
-    for(const item of [...items]){
-      if(!item.removed) await processOne(item);
-    }
-  }finally{
-    processingAll = false;
-    $('all').disabled = false;
-  }
+async function processOne(it){
+ if(it.removed)return;
+ it.run.disabled=true;it.status.textContent='추출 중…';
+ try{
+  const form=new FormData();form.append('file',it.file,it.file.name);
+  const response=await fetch(API_BASE+'/extract-killlog',{method:'POST',body:form});
+  if(!response.ok){let details='';try{const data=await response.json();details=data.detail||'';}catch(e){}
+   throw new Error('HTTP '+response.status+(details?' · '+details:''));}
+  const blob=await response.blob();
+  if(!blob.type.includes('png'))throw new Error('PNG가 아닌 응답이 반환됐습니다.');
+  if(it.removed)return;
+  if(it.resultUrl)URL.revokeObjectURL(it.resultUrl);
+  it.blob=blob;it.originalBlob=blob;it.resultUrl=URL.createObjectURL(blob);
+  const pic=document.createElement('img');pic.src=it.resultUrl;pic.alt='추출된 투명 PNG';
+  it.result.replaceChildren(pic);it.save.disabled=false;it.edit.disabled=false;
+  it.status.textContent='추출 완료';
+ }catch(error){it.status.textContent='추출 실패: '+friendlyError(error);}
+ finally{it.run.disabled=false;}
+}
+$('all').onclick=async()=>{
+ if(processingAll)return;
+ processingAll=true;$('all').disabled=true;
+ try{for(const it of [...items]){if(!it.removed)await processOne(it);}}
+ finally{processingAll=false;$('all').disabled=false;}
+};
+$('clear').onclick=()=>{for(const it of [...items])removeOne(it);serverMessage('목록이 비워졌습니다.');};
+function filename(it){return it.file.name.replace(/\.[^.]+$/,'').slice(0,100)+'_killlog.png';}
+function downloadBlob(blob,name){const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);}
+function canShareFiles(files){try{return !!(navigator.canShare&&navigator.share&&navigator.canShare({files}));}catch(e){return false;}}
+async function shareOne(it){
+ if(!it.blob)return;
+ const file=new File([it.blob],filename(it),{type:'image/png'});
+ if(canShareFiles([file])){
+  try{await navigator.share({files:[file]});return;}
+  catch(error){if(error?.name==='AbortError')return;}
+ }
+ downloadBlob(it.blob,filename(it));
+}
+function crc32(data){
+ let crc=0xffffffff;
+ for(let i=0;i<data.length;i++){
+  crc^=data[i];
+  for(let k=0;k<8;k++)crc=(crc&1)?((crc>>>1)^0xedb88320):(crc>>>1);
+ }
+ return(crc^0xffffffff)>>>0;
+}
+function writeU16(view,at,value){view.setUint16(at,value,true)}
+function writeU32(view,at,value){view.setUint32(at,value>>>0,true)}
+async function createZip(ready){
+ const encoder=new TextEncoder();
+ const entries=[];let offset=0;
+ for(const it of ready){
+  const name=encoder.encode(filename(it));
+  const data=new Uint8Array(await it.blob.arrayBuffer());
+  const crc=crc32(data);
+  const lh=new Uint8Array(30+name.length);
+  const h=new DataView(lh.buffer);
+  writeU32(h,0,0x04034b50);writeU16(h,4,20);writeU16(h,6,0x0800);writeU16(h,8,0);
+  writeU32(h,14,crc);writeU32(h,18,data.length);writeU32(h,22,data.length);writeU16(h,26,name.length);
+  lh.set(name,30);
+  entries.push({name,data,crc,lh,offset});
+  offset+=lh.length+data.length;
+ }
+ const locals=[];const centrals=[];
+ for(const e of entries){
+  locals.push(e.lh,e.data);
+  const cd=new Uint8Array(46+e.name.length);const v=new DataView(cd.buffer);
+  writeU32(v,0,0x02014b50);writeU16(v,4,20);writeU16(v,6,20);writeU16(v,8,0x0800);
+  writeU16(v,10,0);writeU32(v,16,e.crc);writeU32(v,20,e.data.length);
+  writeU32(v,24,e.data.length);writeU16(v,28,e.name.length);writeU32(v,42,e.offset);cd.set(e.name,46);
+  centrals.push(cd);
+ }
+ const centralSize=centrals.reduce((s,p)=>s+p.length,0);
+ const end=new Uint8Array(22);const view=new DataView(end.buffer);
+ writeU32(view,0,0x06054b50);writeU16(view,8,entries.length);writeU16(view,10,entries.length);
+ writeU32(view,12,centralSize);writeU32(view,16,offset);
+ return new Blob([...locals,...centrals,end],{type:'application/zip'});
+}
+$('saveAll').onclick=async()=>{
+ const ready=items.filter(it=>it.blob&&!it.removed);
+ if(!ready.length){serverMessage('먼저 사진을 추출해 주세요.');return;}
+ const files=ready.map(it=>new File([it.blob],filename(it),{type:'image/png'}));
+ if(canShareFiles(files)){
+  try{await navigator.share({files});return;}
+  catch(error){if(error?.name==='AbortError')return;}
+ }
+ // Browser/native share targets cannot be forced to include KakaoTalk or Gallery.
+ // ZIP fallback guarantees a *single* download, not dozens of separate downloads.
+ $('saveAll').disabled=true;serverMessage('여러 장 공유를 지원하지 않아 ZIP 파일로 저장합니다.');
+ try{const zip=await createZip(ready);downloadBlob(zip,'killlog_'+ready.length+'photos.zip');}
+ catch(error){serverMessage('ZIP 저장 실패: '+friendlyError(error));}
+ finally{$('saveAll').disabled=false;}
 };
 
-$('clear').onclick = () => {
-  for(const item of [...items]) removeOne(item);
-  serverMessage('목록이 비워졌습니다.');
+/* ===== 킬로그 보정: 미리보기는 원본 위에 보정 표시를 합성해야 함 ===== */
+const E={
+ open:false, item:null, mode:'keep', drawing:false,
+ view:$('editCanvas'), src:document.createElement('canvas'), current:document.createElement('canvas'),
+ keep:document.createElement('canvas'), seed:document.createElement('canvas'), overlay:document.createElement('canvas'),
+ last:null
 };
+E.ctx=E.view.getContext('2d',{willReadFrequently:true});
+E.srcCtx=E.src.getContext('2d',{willReadFrequently:true});
+E.curCtx=E.current.getContext('2d',{willReadFrequently:true});
+E.keepCtx=E.keep.getContext('2d',{willReadFrequently:true});
+E.seedCtx=E.seed.getContext('2d',{willReadFrequently:true});
+E.overlayCtx=E.overlay.getContext('2d',{willReadFrequently:true});
 
-$('saveAll').onclick = async() => {
-  const ready = items.filter(item => item.blob && !item.removed);
-  if(!ready.length){
-    serverMessage('먼저 사진을 추출해 주세요.');
-    return;
-  }
-
-  const files = ready.map(item => new File([item.blob], filename(item), { type:'image/png' }));
-  if(canShareFiles(files)){
-    try{
-      await navigator.share({ files });
-      return;
-    }catch(error){
-      if(error?.name === 'AbortError') return;
-    }
-  }
-
-  $('saveAll').disabled = true;
-  serverMessage('여러 장 공유를 지원하지 않아 ZIP 파일로 저장합니다.');
-
-  try{
-    const zip = await createZip(ready);
-    downloadBlob(zip, 'killlog_' + ready.length + 'photos.zip');
-  }catch(error){
-    serverMessage('ZIP 저장 실패: ' + friendlyError(error));
-  }finally{
-    $('saveAll').disabled = false;
-  }
-};
-
-function loadBlobAsImage(blob){
-  return new Promise((resolve, reject) => {
-    const url = URL.createObjectURL(blob);
-    const img = new Image();
-    img.onload = () => {
-      URL.revokeObjectURL(url);
-      resolve(img);
-    };
-    img.onerror = () => {
-      URL.revokeObjectURL(url);
-      reject(new Error('이미지를 불러오지 못했습니다.'));
-    };
-    img.src = url;
-  });
+function setEditMode(mode){
+ E.mode=mode;
+ $('modeKeep').className=mode==='keep'?'primary':'';
+ $('modeBg').className=mode==='bg'?'primary':'';
 }
-
-const editor = {
-  open:false,
-  item:null,
-  mode:'keep',
-  drawing:false,
-  lastX:0,
-  lastY:0,
-  view:$('editCanvas'),
-  current:document.createElement('canvas'),
-  original:document.createElement('canvas'),
-  keep:document.createElement('canvas'),
-  seeds:document.createElement('canvas')
-};
-
-editor.vctx = editor.view.getContext('2d');
-editor.currentCtx = editor.current.getContext('2d', { willReadFrequently:true });
-editor.originalCtx = editor.original.getContext('2d', { willReadFrequently:true });
-editor.keepCtx = editor.keep.getContext('2d');
-editor.seedCtx = editor.seeds.getContext('2d');
-
-function setMode(mode){
-  editor.mode = mode;
-  $('modeKeep').className = mode === 'keep' ? 'primary' : 'ghost';
-  $('modeBg').className = mode === 'bg' ? 'primary' : 'ghost';
-}
-
-$('modeKeep').onclick = () => setMode('keep');
-$('modeBg').onclick = () => setMode('bg');
-
-$('brushSize').oninput = () => {
-  $('brushLabel').textContent = $('brushSize').value + 'px';
-};
-
-$('tolerance').oninput = () => {
-  $('tolLabel').textContent = $('tolerance').value;
-};
-
-function clearCanvas(canvas, ctx){
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-}
+$('modeKeep').onclick=()=>setEditMode('keep');
+$('modeBg').onclick=()=>setEditMode('bg');
+$('brushSize').oninput=()=>{$('brushLabel').textContent=$('brushSize').value+'px';};
+$('tolerance').oninput=()=>{$('tolLabel').textContent=$('tolerance').value;};
 
 function redrawEditor(){
-  const w = editor.current.width;
-  const h = editor.current.height;
-
-  editor.vctx.clearRect(0, 0, w, h);
-  editor.vctx.drawImage(editor.current, 0, 0);
-
-  const keepData = editor.keepCtx.getImageData(0,0,w,h).data;
-  const seedData = editor.seedCtx.getImageData(0,0,w,h).data;
-  const overlay = editor.vctx.createImageData(w, h);
-  const out = overlay.data;
-
-  for(let i=0;i<keepData.length;i+=4){
-    if(keepData[i+3] > 0){
-      out[i] = 40;
-      out[i+1] = 220;
-      out[i+2] = 120;
-      out[i+3] = 95;
-    }else if(seedData[i+3] > 0){
-      out[i] = 255;
-      out[i+1] = 80;
-      out[i+2] = 80;
-      out[i+3] = 95;
-    }
-  }
-
-  editor.vctx.putImageData(overlay, 0, 0);
+ if(!E.open) return;
+ const w=E.view.width,h=E.view.height;
+ E.ctx.clearRect(0,0,w,h);
+ E.ctx.drawImage(E.current,0,0); // 원본 킬로그를 먼저 그린다.
+ const a=E.keepCtx.getImageData(0,0,w,h).data;
+ const b=E.seedCtx.getImageData(0,0,w,h).data;
+ const layer=E.overlayCtx.createImageData(w,h);
+ const d=layer.data;
+ for(let i=0;i<d.length;i+=4){
+  if(a[i+3]>0){d[i]=30;d[i+1]=242;d[i+2]=126;d[i+3]=100;}
+  else if(b[i+3]>0){d[i]=255;d[i+1]=67;d[i+2]=79;d[i+3]=105;}
+ }
+ // 직접 E.ctx.putImageData(layer,...) 하면 투명 픽셀이 원본 킬로그를 덮어쓴다.
+ // 반드시 별도 오버레이 캔버스를 거쳐 drawImage로 합성한다.
+ E.overlayCtx.putImageData(layer,0,0);
+ E.ctx.drawImage(E.overlay,0,0);
 }
-
-function getCanvasPos(e){
-  const rect = editor.view.getBoundingClientRect();
-  const scaleX = editor.view.width / rect.width;
-  const scaleY = editor.view.height / rect.height;
-  const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-  const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-  return {
-    x:(clientX - rect.left) * scaleX,
-    y:(clientY - rect.top) * scaleY
-  };
+function canvasPos(e){
+ const rect=E.view.getBoundingClientRect();
+ return {x:(e.clientX-rect.left)*E.view.width/rect.width,
+         y:(e.clientY-rect.top)*E.view.height/rect.height};
 }
-
-function drawCircle(ctx, x, y, radius){
-  ctx.beginPath();
-  ctx.arc(x, y, radius, 0, Math.PI * 2);
-  ctx.fill();
+function circle(ctx,x,y,r){ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fill();}
+function paintDot(x,y){
+ const r=Number($('brushSize').value)/2;
+ if(E.mode==='keep'){
+  E.keepCtx.fillStyle='white';circle(E.keepCtx,x,y,r);
+  E.curCtx.save();E.curCtx.beginPath();E.curCtx.arc(x,y,r,0,Math.PI*2);
+  E.curCtx.clip();E.curCtx.drawImage(E.src,0,0);E.curCtx.restore();
+ }else{
+  E.seedCtx.fillStyle='white';circle(E.seedCtx,x,y,r);
+ }
 }
-
-function restoreFromOriginal(x, y, radius){
-  editor.currentCtx.save();
-  editor.currentCtx.beginPath();
-  editor.currentCtx.arc(x, y, radius, 0, Math.PI * 2);
-  editor.currentCtx.clip();
-  editor.currentCtx.drawImage(editor.original, 0, 0);
-  editor.currentCtx.restore();
+function paintStroke(from,to){
+ const d=Math.hypot(to.x-from.x,to.y-from.y);
+ const step=Math.max(1,Number($('brushSize').value)/5);
+ for(let s=0;s<=d;s+=step){const t=d===0?0:s/d;paintDot(from.x+(to.x-from.x)*t,from.y+(to.y-from.y)*t);}
+ paintDot(to.x,to.y);
+ redrawEditor();
 }
-
-function paintAt(x, y){
-  const radius = Number($('brushSize').value) / 2;
-
-  if(editor.mode === 'keep'){
-    editor.keepCtx.fillStyle = '#ffffff';
-    drawCircle(editor.keepCtx, x, y, radius);
-    restoreFromOriginal(x, y, radius);
-  }else{
-    editor.seedCtx.fillStyle = '#ffffff';
-    drawCircle(editor.seedCtx, x, y, radius);
-  }
-
-  redrawEditor();
-}
-
-function paintLine(x1, y1, x2, y2){
-  const dx = x2 - x1;
-  const dy = y2 - y1;
-  const dist = Math.max(1, Math.hypot(dx, dy));
-  const step = Math.max(1, Number($('brushSize').value) / 5);
-
-  for(let t=0;t<=dist;t+=step){
-    const x = x1 + dx * (t / dist);
-    const y = y1 + dy * (t / dist);
-    paintAt(x, y);
-  }
-  paintAt(x2, y2);
-}
-
-function startDraw(e){
-  if(!editor.open) return;
-  e.preventDefault();
-  editor.drawing = true;
-  const pos = getCanvasPos(e);
-  editor.lastX = pos.x;
-  editor.lastY = pos.y;
-  paintAt(pos.x, pos.y);
-}
-
-function moveDraw(e){
-  if(!editor.open || !editor.drawing) return;
-  e.preventDefault();
-  const pos = getCanvasPos(e);
-  paintLine(editor.lastX, editor.lastY, pos.x, pos.y);
-  editor.lastX = pos.x;
-  editor.lastY = pos.y;
-}
-
-function endDraw(){
-  editor.drawing = false;
-}
-
-['pointerdown','mousedown','touchstart'].forEach(evt => {
-  editor.view.addEventListener(evt, startDraw, { passive:false });
+E.view.addEventListener('pointerdown',e=>{
+ if(!E.open)return;e.preventDefault();E.drawing=true;
+ try{E.view.setPointerCapture(e.pointerId);}catch(err){}
+ E.last=canvasPos(e);paintDot(E.last.x,E.last.y);redrawEditor();
 });
-['pointermove','mousemove','touchmove'].forEach(evt => {
-  editor.view.addEventListener(evt, moveDraw, { passive:false });
+E.view.addEventListener('pointermove',e=>{
+ if(!E.open||!E.drawing)return;e.preventDefault();
+ const pt=canvasPos(e);paintStroke(E.last,pt);E.last=pt;
 });
-['pointerup','pointerleave','mouseup','mouseleave','touchend','touchcancel'].forEach(evt => {
-  editor.view.addEventListener(evt, endDraw, { passive:false });
-});
-
+for(const evt of ['pointerup','pointercancel','lostpointercapture']){
+ E.view.addEventListener(evt,()=>{E.drawing=false;E.last=null;});
+}
+function imageFromBlob(blob){
+ return new Promise((resolve,reject)=>{
+  const url=URL.createObjectURL(blob),im=new Image();
+  im.onload=()=>{URL.revokeObjectURL(url);resolve(im);};
+  im.onerror=()=>{URL.revokeObjectURL(url);reject(Error('이미지를 읽지 못했습니다.'));};
+  im.src=url;
+ });
+}
 async function openEditor(item){
-  if(!item.blob) return;
-
-  editor.item = item;
-  const img = await loadBlobAsImage(item.blob);
-  const w = img.naturalWidth || img.width;
-  const h = img.naturalHeight || img.height;
-
-  [editor.view, editor.current, editor.original, editor.keep, editor.seeds].forEach(c => {
-    c.width = w;
-    c.height = h;
-  });
-
-  clearCanvas(editor.original, editor.originalCtx);
-  clearCanvas(editor.current, editor.currentCtx);
-  clearCanvas(editor.keep, editor.keepCtx);
-  clearCanvas(editor.seeds, editor.seedCtx);
-
-  editor.originalCtx.drawImage(img, 0, 0, w, h);
-  editor.currentCtx.drawImage(img, 0, 0, w, h);
-
-  setMode('keep');
-  redrawEditor();
-  editor.open = true;
-  $('editorModal').classList.add('show');
+ if(!item.blob)return;
+ try{
+  const img=await imageFromBlob(item.blob);
+  if(item.removed)return;
+  E.open=true;E.item=item;E.drawing=false;
+  for(const c of [E.view,E.src,E.current,E.keep,E.seed,E.overlay]){
+   c.width=img.naturalWidth;c.height=img.naturalHeight;
+  }
+  E.srcCtx.drawImage(img,0,0);E.curCtx.drawImage(img,0,0);
+  E.keepCtx.clearRect(0,0,E.view.width,E.view.height);
+  E.seedCtx.clearRect(0,0,E.view.width,E.view.height);
+  setEditMode('keep');$('editorModal').classList.add('show');redrawEditor();
+ }catch(ex){item.status.textContent='보정 창 오류: '+(ex.message||ex);}
 }
+function closeEditor(){E.open=false;E.item=null;E.drawing=false;$('editorModal').classList.remove('show');}
+$('closeEditor').onclick=closeEditor;
+$('editorModal').addEventListener('click',e=>{if(e.target===$('editorModal'))closeEditor();});
 
-function closeEditor(){
-  editor.open = false;
-  editor.item = null;
-  $('editorModal').classList.remove('show');
+// 배경 시드에서 시작한 색상 영역만 제거. 살리기로 표시한 픽셀은 보존된다.
+function eraseBackground(){
+ if(!E.open)return;
+ const w=E.current.width,h=E.current.height;
+ const picture=E.curCtx.getImageData(0,0,w,h),data=picture.data;
+ const keep=E.keepCtx.getImageData(0,0,w,h).data;
+ const seeds=E.seedCtx.getImageData(0,0,w,h).data;
+ const tol=Number($('tolerance').value);
+ const marked=[];
+ for(let i=0;i<w*h;i++){
+  const p=i*4;
+  if(seeds[p+3]>0 && keep[p+3]===0 && data[p+3]>0) marked.push(i);
+ }
+ // 여러 지점에서 시작하되 한 번에 전체 영역 방문 처리
+ const visited=new Uint8Array(w*h), stack=[];
+ // 각 시드마다 색이 다를 수 있으므로 해당 시드별로 분리 처리
+ for(const start of marked.filter((_,i)=>i%Math.max(1,Math.floor(marked.length/120)+1)===0)){
+  if(visited[start] || !data[start*4+3] || keep[start*4+3])continue;
+  const sr=data[start*4],sg=data[start*4+1],sb=data[start*4+2];
+  stack.push(start);
+  while(stack.length){
+   const at=stack.pop();if(visited[at])continue;visited[at]=1;
+   const p=at*4;
+   if(keep[p+3]>0||data[p+3]===0)continue;
+   if(Math.abs(data[p]-sr)>tol||Math.abs(data[p+1]-sg)>tol||Math.abs(data[p+2]-sb)>tol)continue;
+   data[p+3]=0;
+   const x=at%w,y=(at/w)|0;
+   if(x>0)stack.push(at-1);
+   if(x+1<w)stack.push(at+1);
+   if(y>0)stack.push(at-w);
+   if(y+1<h)stack.push(at+w);
+  }
+ }
+ E.curCtx.putImageData(picture,0,0);
+ E.seedCtx.clearRect(0,0,w,h);
+ redrawEditor();
 }
-
-$('closeEditor').onclick = closeEditor;
-
-function floodEraseBySeeds(){
-  const w = editor.current.width;
-  const h = editor.current.height;
-  if(!w || !h) return;
-
-  const img = editor.currentCtx.getImageData(0, 0, w, h);
-  const data = img.data;
-  const keep = editor.keepCtx.getImageData(0, 0, w, h).data;
-  const seed = editor.seedCtx.getImageData(0, 0, w, h).data;
-  const tolerance = Number($('tolerance').value);
-
-  const seeds = [];
-  for(let y=0;y<h;y+=2){
-    for(let x=0;x<w;x+=2){
-      const p = (y * w + x) * 4;
-      if(seed[p+3] > 0 && keep[p+3] === 0 && data[p+3] > 0){
-        seeds.push([x, y]);
-      }
-    }
-  }
-
-  if(!seeds.length){
-    redrawEditor();
-    return;
-  }
-
-  function inRange(x, y){
-    return x >= 0 && y >= 0 && x < w && y < h;
-  }
-
-  function colorOk(idx, sr, sg, sb){
-    if(keep[idx + 3] > 0) return false;
-    if(data[idx + 3] < 8) return false;
-    const dr = data[idx] - sr;
-    const dg = data[idx + 1] - sg;
-    const db = data[idx + 2] - sb;
-    return Math.abs(dr) <= tolerance && Math.abs(dg) <= tolerance && Math.abs(db) <= tolerance;
-  }
-
-  for(const [sx, sy] of seeds){
-    const start = (sy * w + sx) * 4;
-    if(keep[start + 3] > 0 || data[start + 3] < 8) continue;
-
-    const sr = data[start];
-    const sg = data[start + 1];
-    const sb = data[start + 2];
-
-    const localVisited = new Uint8Array(w * h);
-    const stack = [[sx, sy]];
-
-    while(stack.length){
-      const [x, y] = stack.pop();
-      const pos = y * w + x;
-      if(localVisited[pos]) continue;
-      localVisited[pos] = 1;
-
-      const idx = pos * 4;
-      if(!colorOk(idx, sr, sg, sb)) continue;
-
-      data[idx + 3] = 0;
-
-      if(inRange(x+1, y)) stack.push([x+1, y]);
-      if(inRange(x-1, y)) stack.push([x-1, y]);
-      if(inRange(x, y+1)) stack.push([x, y+1]);
-      if(inRange(x, y-1)) stack.push([x, y-1]);
-    }
-  }
-
-  editor.currentCtx.putImageData(img, 0, 0);
-  clearCanvas(editor.seeds, editor.seedCtx);
-  redrawEditor();
-}
-
-$('applyBg').onclick = floodEraseBySeeds;
-
-$('clearPaint').onclick = () => {
-  clearCanvas(editor.keep, editor.keepCtx);
-  clearCanvas(editor.seeds, editor.seedCtx);
-  redrawEditor();
+$('applyBg').onclick=eraseBackground;
+$('clearPaint').onclick=()=>{
+ E.keepCtx.clearRect(0,0,E.view.width,E.view.height);
+ E.seedCtx.clearRect(0,0,E.view.width,E.view.height);
+ redrawEditor();
 };
-
-$('resetEdit').onclick = () => {
-  if(!editor.open) return;
-  clearCanvas(editor.current, editor.currentCtx);
-  editor.currentCtx.drawImage(editor.original, 0, 0);
-  clearCanvas(editor.keep, editor.keepCtx);
-  clearCanvas(editor.seeds, editor.seedCtx);
-  redrawEditor();
+$('resetEdit').onclick=()=>{
+ if(!E.open)return;const w=E.view.width,h=E.view.height;
+ E.curCtx.clearRect(0,0,w,h);E.curCtx.drawImage(E.src,0,0);
+ E.keepCtx.clearRect(0,0,w,h);E.seedCtx.clearRect(0,0,w,h);redrawEditor();
 };
-
-$('saveEdit').onclick = async() => {
-  if(!editor.item) return;
-
-  const blob = await new Promise(resolve => editor.current.toBlob(resolve, 'image/png'));
-  if(!blob) return;
-
-  const item = editor.item;
-  item.blob = blob;
-
-  if(item.resultUrl) URL.revokeObjectURL(item.resultUrl);
-  item.resultUrl = URL.createObjectURL(blob);
-
-  const pic = document.createElement('img');
-  pic.src = item.resultUrl;
-  pic.alt = '보정 결과';
-  item.result.replaceChildren(pic);
-  item.status.textContent = '보정 저장 완료';
-
+$('saveEdit').onclick=()=>{
+ if(!E.open||!E.item)return;
+ const item=E.item;
+ E.current.toBlob(blob=>{
+  if(!blob)return;
+  if(item.resultUrl)URL.revokeObjectURL(item.resultUrl);
+  item.blob=blob;item.resultUrl=URL.createObjectURL(blob);
+  const img=new Image();img.src=item.resultUrl;img.alt='보정 결과';
+  item.result.replaceChildren(img);item.status.textContent='보정 저장 완료';
   closeEditor();
+ },'image/png');
 };
-
-$('editorModal').addEventListener('click', e => {
-  if(e.target === $('editorModal')) closeEditor();
-});
 </script>
 </body>
 </html>
