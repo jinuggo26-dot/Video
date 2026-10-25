@@ -1,141 +1,199 @@
-"""Sna Killlog external processor. Images processed only in RAM."""
-from __future__ import annotations
-import json
-import asyncio
-from io import BytesIO
-from pathlib import Path
-from typing import Any
-
+import io
 import cv2
 import numpy as np
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
-from fastapi.responses import FileResponse, Response
+from flask import Flask, request, jsonify, send_file
+from PIL import Image
 
-APP_DIR = Path(__file__).resolve().parent
-app = FastAPI(title="Sna Killlog GrabCut", docs_url=None, redoc_url=None)
-PROCESSING_GATE = asyncio.Semaphore(2)
-MAX_UPLOAD = 10 * 1024 * 1024
-MAX_PIXELS = 5_000_000
-MAX_CROP_PIXELS = 1_200_000
-MAX_MARKS = 2000
+app = Flask(__name__)
 
-def limit(n: Any, lo: int, hi: int) -> int:
-    return max(lo, min(hi, int(n)))
+RESULT_W = 760
+RESULT_H = 190
 
-def process_image(data: bytes, rect_json: str, marks_json: str) -> bytes:
-    if not data or len(data) > MAX_UPLOAD:
-        raise ValueError("이미지는 10MB 이하여야 합니다.")
-    im = cv2.imdecode(np.frombuffer(data, dtype=np.uint8), cv2.IMREAD_COLOR)
-    if im is None:
-        raise ValueError("JPG·PNG 이미지 파일만 지원합니다.")
-    h, w = im.shape[:2]
-    if h * w > MAX_PIXELS:
-        raise ValueError("이미지 크기가 너무 큽니다. 500만 픽셀 이하로 자르세요.")
-    try:
-        box = json.loads(rect_json)
-        marks = json.loads(marks_json)
-    except (ValueError, TypeError):
-        raise ValueError("선택 영역 또는 브러시 데이터가 올바르지 않습니다.")
-    if not isinstance(box, dict) or not isinstance(marks, list) or len(marks) > MAX_MARKS:
-        raise ValueError("잘못된 선택 영역 또는 브러시 표시입니다.")
-    try:
-        x1 = limit(box['x'], 0, w-1)
-        y1 = limit(box['y'], 0, h-1)
-        x2 = limit(int(box['x'])+int(box['w']), x1+1, w)
-        y2 = limit(int(box['y'])+int(box['h']), y1+1, h)
-    except (KeyError, TypeError, ValueError):
-        raise ValueError("킬로그 선택 영역을 다시 지정하세요.")
-    if (x2-x1)<10 or (y2-y1)<8:
-        raise ValueError("킬로그 영역을 조금 더 크게 선택하세요.")
-    valid_marks: list[tuple[str,int,int,int]] = []
-    for point in marks:
-        if not isinstance(point, dict) or point.get('type') not in ('fg', 'bg'):
+def remove_small_components(mask, min_area=200):
+    num_labels, labels, stats, _ = cv2.connectedComponentsWithStats(mask, connectivity=8)
+    out = np.zeros_like(mask)
+    for i in range(1, num_labels):
+        area = stats[i, cv2.CC_STAT_AREA]
+        if area >= min_area:
+            out[labels == i] = 255
+    return out
+
+def get_largest_reasonable_component(mask, roi_shape):
+    num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(mask, connectivity=8)
+    h, w = roi_shape[:2]
+    best_idx = -1
+    best_score = -1
+
+    for i in range(1, num_labels):
+        x, y, cw, ch, area = stats[i]
+        if area < 1200:
             continue
-        try:
-            px=limit(point['x'],0,w-1);py=limit(point['y'],0,h-1)
-            radius=limit(point.get('r',6),1,55)
-        except (KeyError, TypeError, ValueError):
-            continue
-        valid_marks.append((point['type'],px,py,radius))
-        if point['type']=='fg':
-            # Explicit restore strokes may reach outside a mistaken initial crop.
-            x1=min(x1,max(0,px-radius));y1=min(y1,max(0,py-radius))
-            x2=max(x2,min(w,px+radius+1));y2=max(y2,min(h,py+radius+1))
-    # Only use the actual specified crop. Do not guess foreground by screenshot size.
-    pad = max(12, min(36, round((y2-y1)*.3)))
-    ax=max(0,x1-pad);ay=max(0,y1-pad)
-    bx=min(w,x2+pad);by=min(h,y2+pad)
-    if (bx-ax)*(by-ay)>MAX_CROP_PIXELS:
-        raise ValueError("분리 영역이 너무 큽니다. 킬로그 주변만 지정하세요.")
-    crop=im[ay:by,ax:bx].copy()
-    ch,cw=crop.shape[:2]
-    mask=np.full((ch,cw), cv2.GC_BGD, np.uint8)
-    lx=x1-ax;ly=y1-ay;rx=x2-ax;ry=y2-ay
-    mask[ly:ry,lx:rx]=cv2.GC_PR_FGD
-    # Setting a small region inside the box as definite foreground prevents
-    # GrabCut from having no seeds when the user only supplied a rectangle.
-    cX=(lx+rx)//2;cY=(ly+ry)//2
-    coreW=max(2,round((rx-lx)*.08));coreH=max(2,round((ry-ly)*.15))
-    mask[max(0,cY-coreH):min(ch,cY+coreH),max(0,cX-coreW):min(cw,cX+coreW)]=cv2.GC_FGD
-    # User FG/BG strokes are hard seeds rather than color similarities.
-    for typ,px,py,r in valid_marks:
-        cv2.circle(mask,(px-ax,py-ay),r,cv2.GC_FGD if typ=='fg' else cv2.GC_BGD,-1)
-    if not np.any(mask==cv2.GC_FGD):
-        raise ValueError("살릴 부분이 전부 지워졌습니다. 킬로그에 살리기를 표시하세요.")
-    bg_model=np.zeros((1,65),np.float64)
-    fg_model=np.zeros((1,65),np.float64)
-    try:
-        cv2.grabCut(crop,mask,None,bg_model,fg_model,4,cv2.GC_INIT_WITH_MASK)
-    except cv2.error:
-        raise ValueError("자동 분리에 실패했습니다. 살리기와 지우기를 조금씩 표시해 보세요.")
-    alpha=np.where((mask==cv2.GC_FGD)|(mask==cv2.GC_PR_FGD),255,0).astype('uint8')
-    # Explicit brush strokes are ALWAYS restored or erased after segmentation.
-    for typ,px,py,r in valid_marks:
-        cv2.circle(alpha,(px-ax,py-ay),r,255 if typ=='fg' else 0,-1)
-    # mild edge antialiasing, constrained not to bring back distant background
-    alpha=cv2.GaussianBlur(alpha,(3,3),0.55)
-    for typ,px,py,r in valid_marks:
-        cv2.circle(alpha,(px-ax,py-ay),max(1,r-1),255 if typ=='fg' else 0,-1)
-    yy,xx=np.where(alpha>=8)
-    if len(xx)<15:
-        raise ValueError("킬로그가 감지되지 않았습니다. 살리기 표시와 선택 영역을 확인하세요.")
-    l=max(0,int(xx.min())-2);t=max(0,int(yy.min())-2)
-    r=min(cw,int(xx.max())+3);b=min(ch,int(yy.max())+3)
-    cut=crop[t:b,l:r]
-    am=alpha[t:b,l:r]
-    scale=min(744/max(1,r-l),174/max(1,b-t))
-    ow=max(1,round((r-l)*scale));oh=max(1,round((b-t)*scale))
-    method=cv2.INTER_AREA if scale<1 else cv2.INTER_CUBIC
-    dest=cv2.resize(cut,(ow,oh),interpolation=method)
-    a=cv2.resize(am,(ow,oh),interpolation=cv2.INTER_LINEAR)
-    rgba=cv2.cvtColor(dest,cv2.COLOR_BGR2BGRA)
-    rgba[:,:,3]=a
-    full=np.zeros((190,760,4),dtype=np.uint8)
-    dx=(760-ow)//2;dy=(190-oh)//2
-    full[dy:dy+oh,dx:dx+ow]=rgba
-    ok,encoded=cv2.imencode('.png',full)
-    if not ok:
-        raise ValueError("PNG 변환 실패")
-    return encoded.tobytes()
+        aspect = cw / max(ch, 1)
+        cx, cy = centroids[i]
 
-@app.get('/')
-def editor():
-    return FileResponse(APP_DIR / 'editor.html', media_type='text/html')
+        # 킬로그 특성: 가로로 긴 형태 + ROI 상단 쪽 + 어느정도 넓이
+        score = (
+            area * 1.0
+            + cw * 25
+            + aspect * 1200
+            - abs(cy - h * 0.38) * 60
+        )
+        if score > best_score:
+            best_score = score
+            best_idx = i
 
-@app.get('/health')
+    if best_idx == -1:
+        return None
+
+    component_mask = np.zeros_like(mask)
+    component_mask[labels == best_idx] = 255
+    return component_mask
+
+def tight_rgba_from_mask(bgr_crop, mask):
+    if mask is None or cv2.countNonZero(mask) == 0:
+        return None
+
+    ys, xs = np.where(mask > 0)
+    if len(xs) == 0 or len(ys) == 0:
+        return None
+
+    x1, x2 = xs.min(), xs.max()
+    y1, y2 = ys.min(), ys.max()
+
+    pad_x = int((x2 - x1 + 1) * 0.05) + 8
+    pad_y = int((y2 - y1 + 1) * 0.12) + 8
+
+    x1 = max(0, x1 - pad_x)
+    y1 = max(0, y1 - pad_y)
+    x2 = min(bgr_crop.shape[1] - 1, x2 + pad_x)
+    y2 = min(bgr_crop.shape[0] - 1, y2 + pad_y)
+
+    crop = bgr_crop[y1:y2+1, x1:x2+1]
+    alpha = mask[y1:y2+1, x1:x2+1]
+
+    rgba = cv2.cvtColor(crop, cv2.COLOR_BGR2BGRA)
+    rgba[:, :, 3] = alpha
+    return rgba
+
+def place_on_canvas(rgba, out_w=760, out_h=190):
+    h, w = rgba.shape[:2]
+    if h == 0 or w == 0:
+        return np.zeros((out_h, out_w, 4), dtype=np.uint8)
+
+    scale = min(out_w / w, out_h / h)
+    nw, nh = max(1, int(w * scale)), max(1, int(h * scale))
+    resized = cv2.resize(rgba, (nw, nh), interpolation=cv2.INTER_AREA)
+
+    canvas = np.zeros((out_h, out_w, 4), dtype=np.uint8)
+    x = (out_w - nw) // 2
+    y = (out_h - nh) // 2
+    canvas[y:y+nh, x:x+nw] = resized
+    return canvas
+
+def make_foreground_mask(roi):
+    hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
+    h, s, v = cv2.split(hsv)
+
+    # 배경은 대체로 어둡고 푸른 회색, 킬로그는 밝거나 채도가 높음
+    # 테두리 색 평균으로 배경 추정
+    border = np.concatenate([
+        roi[0:8, :, :].reshape(-1, 3),
+        roi[-8:, :, :].reshape(-1, 3),
+        roi[:, 0:8, :].reshape(-1, 3),
+        roi[:, -8:, :].reshape(-1, 3),
+    ], axis=0)
+
+    bg = np.median(border, axis=0).astype(np.uint8)
+    diff = np.sqrt(np.sum((roi.astype(np.int16) - bg.astype(np.int16)) ** 2, axis=2)).astype(np.uint8)
+
+    # 여러 특성 결합
+    mask1 = (diff > 34).astype(np.uint8) * 255
+    mask2 = ((s > 45) & (v > 55)).astype(np.uint8) * 255
+    mask3 = (v > 120).astype(np.uint8) * 255
+
+    mask = cv2.bitwise_or(mask1, mask2)
+    mask = cv2.bitwise_or(mask, mask3)
+
+    kernel1 = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
+    kernel2 = cv2.getStructuringElement(cv2.MORPH_RECT, (9, 5))
+
+    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel2, iterations=2)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel1, iterations=1)
+    mask = remove_small_components(mask, min_area=150)
+
+    return mask
+
+def extract_killlog(img):
+    h, w = img.shape[:2]
+
+    # 네가 준 원본들 기준으로 킬로그가 주로 있는 위치
+    x1 = int(w * 0.25)
+    x2 = int(w * 0.76)
+    y1 = int(h * 0.07)
+    y2 = int(h * 0.28)
+
+    roi = img[y1:y2, x1:x2].copy()
+
+    raw_mask = make_foreground_mask(roi)
+    target_mask = get_largest_reasonable_component(raw_mask, roi.shape)
+
+    if target_mask is None:
+        # 실패하면 넓은 고정 영역 fallback
+        fx1 = int(w * 0.31)
+        fx2 = int(w * 0.72)
+        fy1 = int(h * 0.09)
+        fy2 = int(h * 0.25)
+        fallback = img[fy1:fy2, fx1:fx2].copy()
+
+        raw_mask = make_foreground_mask(fallback)
+        target_mask = remove_small_components(raw_mask, min_area=250)
+        rgba = tight_rgba_from_mask(fallback, target_mask)
+        if rgba is None:
+            rgba = cv2.cvtColor(fallback, cv2.COLOR_BGR2BGRA)
+            rgba[:, :, 3] = 255
+        return place_on_canvas(rgba, RESULT_W, RESULT_H)
+
+    rgba = tight_rgba_from_mask(roi, target_mask)
+    if rgba is None:
+        rgba = cv2.cvtColor(roi, cv2.COLOR_BGR2BGRA)
+        rgba[:, :, 3] = 255
+
+    return place_on_canvas(rgba, RESULT_W, RESULT_H)
+
+@app.route("/health", methods=["GET"])
 def health():
-    return {'ok':True,'engine':'grabcut','result_size':'760x190'}
+    return jsonify({
+        "ok": True,
+        "mode": "killlog-auto",
+        "result_size": f"{RESULT_W}x{RESULT_H}"
+    })
 
-@app.post('/api/grabcut')
-async def grabcut(file:UploadFile=File(...),rect:str=Form(...),marks:str=Form('[]')):
-    if file.content_type not in ('image/jpeg','image/png','image/webp','application/octet-stream'):
-        raise HTTPException(status_code=415,detail='JPG 또는 PNG를 선택하세요.')
-    raw=await file.read(MAX_UPLOAD+1)
-    if len(raw)>MAX_UPLOAD:
-        raise HTTPException(status_code=413,detail='이미지는 10MB 이하여야 합니다.')
-    async with PROCESSING_GATE:
-        try:
-            result=await asyncio.to_thread(process_image,raw,rect,marks)
-        except ValueError as ex:
-            raise HTTPException(status_code=400,detail=str(ex))
-    return Response(result,media_type='image/png',headers={'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'})
+@app.route("/extract-killlog", methods=["POST"])
+def extract_killlog_api():
+    if "file" not in request.files:
+        return jsonify({"ok": False, "error": "file 없음"}), 400
+
+    file = request.files["file"]
+    data = file.read()
+    img_np = np.frombuffer(data, np.uint8)
+    img = cv2.imdecode(img_np, cv2.IMREAD_COLOR)
+
+    if img is None:
+        return jsonify({"ok": False, "error": "이미지 읽기 실패"}), 400
+
+    result = extract_killlog(img)
+
+    pil_img = Image.fromarray(cv2.cvtColor(result, cv2.COLOR_BGRA2RGBA))
+    bio = io.BytesIO()
+    pil_img.save(bio, format="PNG")
+    bio.seek(0)
+
+    return send_file(
+        bio,
+        mimetype="image/png",
+        as_attachment=False,
+        download_name="killlog.png"
+    )
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000, debug=True)
