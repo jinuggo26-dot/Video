@@ -1,199 +1,142 @@
-import io
+"""PUBG-style kill notification image crop API.
+No GrabCut or third-party background-removal service. Runs in Render with Uvicorn.
+"""
+from __future__ import annotations
+import asyncio
+from pathlib import Path
 import cv2
 import numpy as np
-from flask import Flask, request, jsonify, send_file
-from PIL import Image
+from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, Response
 
-app = Flask(__name__)
+app = FastAPI(title="Killlog auto extractor")
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["GET", "POST"], allow_headers=["*"], allow_credentials=False)
+ROOT = Path(__file__).resolve().parent
+GATE = asyncio.Semaphore(2)
+MAX_BYTES = 10 * 1024 * 1024
+MAX_PIXELS = 6_000_000
+OUT_W, OUT_H = 760, 190
 
-RESULT_W = 760
-RESULT_H = 190
 
-def remove_small_components(mask, min_area=200):
-    num_labels, labels, stats, _ = cv2.connectedComponentsWithStats(mask, connectivity=8)
-    out = np.zeros_like(mask)
-    for i in range(1, num_labels):
-        area = stats[i, cv2.CC_STAT_AREA]
-        if area >= min_area:
-            out[labels == i] = 255
-    return out
+def transparent_extract(raw: bytes) -> bytes:
+    image = cv2.imdecode(np.frombuffer(raw, dtype=np.uint8), cv2.IMREAD_COLOR)
+    if image is None:
+        raise ValueError("JPG·PNG·WEBP 이미지를 읽을 수 없습니다.")
+    H, W = image.shape[:2]
+    if W < 350 or H < 200 or W * H > MAX_PIXELS:
+        raise ValueError("이미지 크기가 너무 작거나 큽니다(최대 600만 픽셀).")
 
-def get_largest_reasonable_component(mask, roi_shape):
-    num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(mask, connectivity=8)
-    h, w = roi_shape[:2]
-    best_idx = -1
-    best_score = -1
+    # Search in the notification area; restrict background estimation to the same columns.
+    # Geometry is approximate rather than a rigid full image crop and allows decoration overhangs.
+    ax, bx = round(W * 0.285), round(W * 0.715)
+    ay, by = round(H * 0.11), round(H * 0.305)
+    roi = image[ay:by, ax:bx].copy()
+    h, w = roi.shape[:2]
+    # Estimate the locally varying background by interpolating just outside the banner band.
+    above_y = max(0, round(H * 0.102))
+    below_y = min(H - 1, round(H * 0.318))
+    above = cv2.GaussianBlur(image[above_y:above_y+1, ax:bx].copy(), (25, 1), 0)[0]
+    below = cv2.GaussianBlur(image[below_y:below_y+1, ax:bx].copy(), (25, 1), 0)[0]
+    # When color around the target changes smoothly, linear interpolation is closer than median border color.
+    ys = np.arange(ay, by, dtype=np.float32)
+    weight = np.clip((ys - above_y) / max(1, below_y - above_y), 0, 1)[:, None, None]
+    background = above.astype(np.float32)[None, :, :] * (1-weight) + below.astype(np.float32)[None, :, :] * weight
+    background = cv2.GaussianBlur(background, (7, 3), 0)
+    lab_fore = cv2.cvtColor(roi, cv2.COLOR_BGR2LAB).astype(np.float32)
+    lab_back = cv2.cvtColor(background.astype(np.uint8), cv2.COLOR_BGR2LAB).astype(np.float32)
+    diff = np.sqrt(np.sum((lab_fore - lab_back) ** 2, axis=2))
 
-    for i in range(1, num_labels):
-        x, y, cw, ch, area = stats[i]
-        if area < 1200:
-            continue
-        aspect = cw / max(ch, 1)
-        cx, cy = centroids[i]
-
-        # 킬로그 특성: 가로로 긴 형태 + ROI 상단 쪽 + 어느정도 넓이
-        score = (
-            area * 1.0
-            + cw * 25
-            + aspect * 1200
-            - abs(cy - h * 0.38) * 60
-        )
-        if score > best_score:
-            best_score = score
-            best_idx = i
-
-    if best_idx == -1:
-        return None
-
-    component_mask = np.zeros_like(mask)
-    component_mask[labels == best_idx] = 255
-    return component_mask
-
-def tight_rgba_from_mask(bgr_crop, mask):
-    if mask is None or cv2.countNonZero(mask) == 0:
-        return None
-
-    ys, xs = np.where(mask > 0)
-    if len(xs) == 0 or len(ys) == 0:
-        return None
-
-    x1, x2 = xs.min(), xs.max()
-    y1, y2 = ys.min(), ys.max()
-
-    pad_x = int((x2 - x1 + 1) * 0.05) + 8
-    pad_y = int((y2 - y1 + 1) * 0.12) + 8
-
-    x1 = max(0, x1 - pad_x)
-    y1 = max(0, y1 - pad_y)
-    x2 = min(bgr_crop.shape[1] - 1, x2 + pad_x)
-    y2 = min(bgr_crop.shape[0] - 1, y2 + pad_y)
-
-    crop = bgr_crop[y1:y2+1, x1:x2+1]
-    alpha = mask[y1:y2+1, x1:x2+1]
-
-    rgba = cv2.cvtColor(crop, cv2.COLOR_BGR2BGRA)
-    rgba[:, :, 3] = alpha
-    return rgba
-
-def place_on_canvas(rgba, out_w=760, out_h=190):
-    h, w = rgba.shape[:2]
-    if h == 0 or w == 0:
-        return np.zeros((out_h, out_w, 4), dtype=np.uint8)
-
-    scale = min(out_w / w, out_h / h)
-    nw, nh = max(1, int(w * scale)), max(1, int(h * scale))
-    resized = cv2.resize(rgba, (nw, nh), interpolation=cv2.INTER_AREA)
-
-    canvas = np.zeros((out_h, out_w, 4), dtype=np.uint8)
-    x = (out_w - nw) // 2
-    y = (out_h - nh) // 2
-    canvas[y:y+nh, x:x+nw] = resized
-    return canvas
-
-def make_foreground_mask(roi):
     hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
-    h, s, v = cv2.split(hsv)
+    sat = hsv[:, :, 1].astype(np.float32)
+    val = hsv[:, :, 2].astype(np.float32)
+    # Color/brightness cues are evidence, not a guarantee of true segmentation.
+    strength = np.clip((diff - 17.0) * 6.0, 0, 255)
+    saturated = np.clip((sat - 75) * 2.0, 0, 120) * np.clip((diff - 9) / 25, 0, 1)
+    bright = np.clip((val - 145) * 2.4, 0, 180) * np.clip((diff - 12) / 30, 0, 1)
+    strength = np.maximum.reduce([strength, saturated, bright])
 
-    # 배경은 대체로 어둡고 푸른 회색, 킬로그는 밝거나 채도가 높음
-    # 테두리 색 평균으로 배경 추정
-    border = np.concatenate([
-        roi[0:8, :, :].reshape(-1, 3),
-        roi[-8:, :, :].reshape(-1, 3),
-        roi[:, 0:8, :].reshape(-1, 3),
-        roi[:, -8:, :].reshape(-1, 3),
-    ], axis=0)
+    hard = np.where(strength > 45, 255, 0).astype(np.uint8)
+    # Prefer long horizontal connected pieces typical of notification bars.
+    joined = cv2.morphologyEx(hard, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (17, 3)))
+    num, lab, stats, centers = cv2.connectedComponentsWithStats(joined, 8)
+    plausible = []
+    for i in range(1, num):
+        x, y, ww, hh, area = map(int, stats[i])
+        if ww < max(95, round(w*.18)) or hh < 10 or area < 250:
+            continue
+        cy = y+hh/2
+        score = ww*4 + area/4 - abs(cy - h*.42)*3
+        plausible.append((score, i))
+    chosen = np.zeros_like(hard)
+    if plausible:
+        _, idx = max(plausible)
+        chosen[lab == idx] = 255
+        # Gently include nearby graphic detail and thin highlights beyond the solid bar.
+        dilated = cv2.dilate(chosen, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (11, 11)))
+        chosen = np.where((dilated>0) & (strength>17), 255, chosen).astype(np.uint8)
+        # connected fragments like isolated particles close to the banner
+        hard_local = np.where((dilated>0) & (strength>18), 255, 0).astype(np.uint8)
+        chosen = cv2.bitwise_or(chosen, hard_local)
+    else:
+        # When no long component is detected, return local high-confidence pixels instead of an HTTP error.
+        chosen = hard
 
-    bg = np.median(border, axis=0).astype(np.uint8)
-    diff = np.sqrt(np.sum((roi.astype(np.int16) - bg.astype(np.int16)) ** 2, axis=2)).astype(np.uint8)
+    # Localize a sensible horizontal region to prevent stray screen interface artifacts.
+    # Limit to the region surrounding detected notification lines, not all foreground in the ROI.
+    yy, xx = np.where(chosen > 0)
+    if len(xx) >= 30:
+        xl, xr = max(0, int(np.percentile(xx, 1))-18), min(w, int(np.percentile(xx, 99))+19)
+        yt, yb = max(0, int(np.percentile(yy, 1))-15), min(h, int(np.percentile(yy, 99))+16)
+        region = np.zeros_like(chosen)
+        region[yt:yb, xl:xr] = 255
+        alpha = (np.maximum(chosen, np.clip((strength-12)*3.0, 0, 255).astype(np.uint8)) & region)
+    else:
+        # Safe fallback that is still transparent rather than opaque screenshot rectangle.
+        alpha = np.where(strength>32, np.clip(strength,0,255), 0).astype(np.uint8)
+    # Discard tiny noise and avoid turning a dark screen rectangle opaque.
+    alpha = cv2.GaussianBlur(alpha, (3, 3), .6)
+    yy, xx = np.where(alpha > 18)
+    if len(xx) < 15:
+        raise ValueError("킬로그 후보를 찾지 못했습니다. 킬 알림이 보이는 원본 화면을 올려 주세요.")
 
-    # 여러 특성 결합
-    mask1 = (diff > 34).astype(np.uint8) * 255
-    mask2 = ((s > 45) & (v > 55)).astype(np.uint8) * 255
-    mask3 = (v > 120).astype(np.uint8) * 255
+    x0, x1 = max(0,int(xx.min())-5), min(w,int(xx.max())+6)
+    y0, y1 = max(0,int(yy.min())-5), min(h,int(yy.max())+6)
+    color = roi[y0:y1, x0:x1]
+    matte = alpha[y0:y1, x0:x1]
+    cw, ch = x1-x0, y1-y0
+    scale = min((OUT_W-16)/max(1,cw), (OUT_H-16)/max(1,ch))
+    dw, dh = max(1,int(round(cw*scale))), max(1,int(round(ch*scale)))
+    interp = cv2.INTER_AREA if scale<1 else cv2.INTER_CUBIC
+    color = cv2.resize(color, (dw,dh), interpolation=interp)
+    matte = cv2.resize(matte, (dw,dh), interpolation=cv2.INTER_LINEAR)
+    canvas = np.zeros((OUT_H,OUT_W,4), dtype=np.uint8)
+    xpad, ypad = (OUT_W-dw)//2, (OUT_H-dh)//2
+    canvas[ypad:ypad+dh,xpad:xpad+dw,:3]=color
+    canvas[ypad:ypad+dh,xpad:xpad+dw,3]=matte
+    success, png = cv2.imencode('.png',canvas)
+    if not success: raise ValueError("PNG 인코딩에 실패했습니다.")
+    return png.tobytes()
 
-    mask = cv2.bitwise_or(mask1, mask2)
-    mask = cv2.bitwise_or(mask, mask3)
 
-    kernel1 = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
-    kernel2 = cv2.getStructuringElement(cv2.MORPH_RECT, (9, 5))
+@app.get('/')
+def home():
+    return FileResponse(ROOT/'index.html', media_type='text/html')
 
-    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel2, iterations=2)
-    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel1, iterations=1)
-    mask = remove_small_components(mask, min_area=150)
 
-    return mask
-
-def extract_killlog(img):
-    h, w = img.shape[:2]
-
-    # 네가 준 원본들 기준으로 킬로그가 주로 있는 위치
-    x1 = int(w * 0.25)
-    x2 = int(w * 0.76)
-    y1 = int(h * 0.07)
-    y2 = int(h * 0.28)
-
-    roi = img[y1:y2, x1:x2].copy()
-
-    raw_mask = make_foreground_mask(roi)
-    target_mask = get_largest_reasonable_component(raw_mask, roi.shape)
-
-    if target_mask is None:
-        # 실패하면 넓은 고정 영역 fallback
-        fx1 = int(w * 0.31)
-        fx2 = int(w * 0.72)
-        fy1 = int(h * 0.09)
-        fy2 = int(h * 0.25)
-        fallback = img[fy1:fy2, fx1:fx2].copy()
-
-        raw_mask = make_foreground_mask(fallback)
-        target_mask = remove_small_components(raw_mask, min_area=250)
-        rgba = tight_rgba_from_mask(fallback, target_mask)
-        if rgba is None:
-            rgba = cv2.cvtColor(fallback, cv2.COLOR_BGR2BGRA)
-            rgba[:, :, 3] = 255
-        return place_on_canvas(rgba, RESULT_W, RESULT_H)
-
-    rgba = tight_rgba_from_mask(roi, target_mask)
-    if rgba is None:
-        rgba = cv2.cvtColor(roi, cv2.COLOR_BGR2BGRA)
-        rgba[:, :, 3] = 255
-
-    return place_on_canvas(rgba, RESULT_W, RESULT_H)
-
-@app.route("/health", methods=["GET"])
+@app.get('/health')
 def health():
-    return jsonify({
-        "ok": True,
-        "mode": "killlog-auto",
-        "result_size": f"{RESULT_W}x{RESULT_H}"
-    })
+    return {'ok': True, 'engine': 'killlog-auto-no-grabcut', 'result_size':'760x190', 'endpoint':'POST /extract-killlog'}
 
-@app.route("/extract-killlog", methods=["POST"])
-def extract_killlog_api():
-    if "file" not in request.files:
-        return jsonify({"ok": False, "error": "file 없음"}), 400
 
-    file = request.files["file"]
-    data = file.read()
-    img_np = np.frombuffer(data, np.uint8)
-    img = cv2.imdecode(img_np, cv2.IMREAD_COLOR)
-
-    if img is None:
-        return jsonify({"ok": False, "error": "이미지 읽기 실패"}), 400
-
-    result = extract_killlog(img)
-
-    pil_img = Image.fromarray(cv2.cvtColor(result, cv2.COLOR_BGRA2RGBA))
-    bio = io.BytesIO()
-    pil_img.save(bio, format="PNG")
-    bio.seek(0)
-
-    return send_file(
-        bio,
-        mimetype="image/png",
-        as_attachment=False,
-        download_name="killlog.png"
-    )
-
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+@app.post('/extract-killlog')
+async def extract(file: UploadFile = File(...)):
+    raw = await file.read(MAX_BYTES+1)
+    if len(raw) > MAX_BYTES:
+        raise HTTPException(413, detail='이미지는 10MB 이하여야 합니다.')
+    async with GATE:
+        try:
+            png = await asyncio.to_thread(transparent_extract, raw)
+        except ValueError as ex:
+            raise HTTPException(400, detail=str(ex))
+    return Response(png, media_type='image/png', headers={'Cache-Control':'no-store'})
