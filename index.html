@@ -74,7 +74,7 @@ select{background:#192a46;color:white;border:1px solid #587099;border-radius:10p
 <div id="editorModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="editTitle">
  <div class="modal-card">
   <div class="modal-top"><h2 id="editTitle">킬로그 보정</h2><button id="closeEditor">닫기</button></div>
-  <p class="sub">살리기: 원본 사진의 색을 다시 가져와 복구 · 배경 지우기: 어두운 배경만 제거 · 킬로그/장식 자동 보호</p>
+  <p class="sub">살리기: 원본 색 복원 · 배경 지우기: 칠하면 바로 지워짐 · 킬로그 본체 보호</p>
   <div class="edit-tools">
    <button id="modeKeep" class="primary">살리기</button>
    <button id="modeBg">배경 지우기</button>
@@ -84,8 +84,9 @@ select{background:#192a46;color:white;border:1px solid #587099;border-radius:10p
    <span class="badge" id="tolLabel">30</span>
   </div>
   <div class="edit-wrap"><canvas id="editCanvas" width="760" height="190"></canvas></div>
+  <div id="editFeedback" role="status" aria-live="polite" class="sub" style="min-height:20px;margin:8px 0"></div>
   <div class="edit-actions">
-   <button id="applyBg">배경 지우기 적용</button>
+   <button id="applyBg" disabled>배경 지우기는 바로 적용됨</button>
    <button id="clearPaint">칠한 표시 지우기</button>
    <button id="resetEdit">원래대로</button>
    <button id="saveEdit" class="primary">보정 저장</button>
@@ -240,18 +241,17 @@ $('saveAll').onclick=async()=>{
  finally{$('saveAll').disabled=false;}
 };
 
-/* ===== 킬로그 보정: 미리보기는 원본 위에 보정 표시를 합성해야 함 ===== */
+/* ===== 킬로그 보정: 살리기는 즉시 복원, 배경 지우기는 즉시 삭제 ===== */
 const E={
  open:false, item:null, mode:'keep', drawing:false,
  view:$('editCanvas'), src:document.createElement('canvas'), current:document.createElement('canvas'),
- keep:document.createElement('canvas'), seed:document.createElement('canvas'), overlay:document.createElement('canvas'), reference:document.createElement('canvas'),
- last:null
+ keep:document.createElement('canvas'), overlay:document.createElement('canvas'), reference:document.createElement('canvas'),
+ last:null, protect:null, protectBox:null, erasedPixels:0
 };
 E.ctx=E.view.getContext('2d',{willReadFrequently:true});
 E.srcCtx=E.src.getContext('2d',{willReadFrequently:true});
 E.curCtx=E.current.getContext('2d',{willReadFrequently:true});
 E.keepCtx=E.keep.getContext('2d',{willReadFrequently:true});
-E.seedCtx=E.seed.getContext('2d',{willReadFrequently:true});
 E.overlayCtx=E.overlay.getContext('2d',{willReadFrequently:true});
 E.refCtx=E.reference.getContext('2d',{willReadFrequently:true});
 
@@ -259,6 +259,12 @@ function setEditMode(mode){
  E.mode=mode;
  $('modeKeep').className=mode==='keep'?'primary':'';
  $('modeBg').className=mode==='bg'?'primary':'';
+ const note=$('editFeedback');
+ if(note){
+  note.textContent=mode==='bg'
+   ? '배경 지우기는 칠하는 즉시 적용됩니다. 킬로그 본체는 보호되고, 겉에 붙은 잔여 배경/장식은 바로 지울 수 있습니다.'
+   : '살리기는 칠하는 즉시 원본 색으로 복원됩니다.';
+ }
 }
 $('modeKeep').onclick=()=>setEditMode('keep');
 $('modeBg').onclick=()=>setEditMode('bg');
@@ -269,17 +275,13 @@ function redrawEditor(){
  if(!E.open) return;
  const w=E.view.width,h=E.view.height;
  E.ctx.clearRect(0,0,w,h);
- E.ctx.drawImage(E.current,0,0); // 원본 킬로그를 먼저 그린다.
+ E.ctx.drawImage(E.current,0,0);
  const a=E.keepCtx.getImageData(0,0,w,h).data;
- const b=E.seedCtx.getImageData(0,0,w,h).data;
  const layer=E.overlayCtx.createImageData(w,h);
  const d=layer.data;
  for(let i=0;i<d.length;i+=4){
   if(a[i+3]>0){d[i]=30;d[i+1]=242;d[i+2]=126;d[i+3]=100;}
-  else if(b[i+3]>0){d[i]=255;d[i+1]=67;d[i+2]=79;d[i+3]=105;}
  }
- // 직접 E.ctx.putImageData(layer,...) 하면 투명 픽셀이 원본 킬로그를 덮어쓴다.
- // 반드시 별도 오버레이 캔버스를 거쳐 drawImage로 합성한다.
  E.overlayCtx.putImageData(layer,0,0);
  E.ctx.drawImage(E.overlay,0,0);
 }
@@ -289,29 +291,128 @@ function canvasPos(e){
          y:(e.clientY-rect.top)*E.view.height/rect.height};
 }
 function circle(ctx,x,y,r){ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fill();}
+
+function buildProtectedCore(){
+ const w=E.src.width,h=E.src.height;
+ const data=E.srcCtx.getImageData(0,0,w,h).data;
+ const occ=new Int32Array(h);
+ let maxOcc=0;
+ for(let y=0;y<h;y++){
+  let c=0;
+  for(let x=0;x<w;x++) if(data[(y*w+x)*4+3]>28) c++;
+  occ[y]=c; if(c>maxOcc) maxOcc=c;
+ }
+ const thr=Math.max(54,Math.round(maxOcc*0.42));
+ let bestStart=0,bestEnd=Math.max(0,h-1),bestLen=-1;
+ let cur=-1;
+ for(let y=0;y<h;y++){
+  if(occ[y]>=thr){ if(cur<0) cur=y; }
+  else if(cur>=0){ const len=y-cur; if(len>bestLen){bestLen=len; bestStart=cur; bestEnd=y-1;} cur=-1; }
+ }
+ if(cur>=0){ const len=h-cur; if(len>bestLen){bestLen=len; bestStart=cur; bestEnd=h-1;} }
+ if(bestLen<0){ bestStart=Math.round(h*0.34); bestEnd=Math.round(h*0.66); }
+ let left=w,right=0,found=0;
+ const tY=Math.max(0,bestStart-3), bY=Math.min(h-1,bestEnd+3);
+ for(let y=tY;y<=bY;y++){
+  for(let x=0;x<w;x++){
+   if(data[(y*w+x)*4+3]>28){ found++; if(x<left)left=x; if(x>right)right=x; }
+  }
+ }
+ if(!found){ left=Math.round(w*0.14); right=Math.round(w*0.86); }
+ left=Math.max(0,left-18); right=Math.min(w-1,right+18);
+ const top=Math.max(0,bestStart-10), bottom=Math.min(h-1,bestEnd+10);
+ const mask=new Uint8Array(w*h);
+ for(let y=top;y<=bottom;y++){
+  for(let x=left;x<=right;x++){
+   const idx=y*w+x, p=idx*4;
+   if(data[p+3]>8) mask[idx]=1;
+  }
+ }
+ const out=new Uint8Array(w*h);
+ for(let y=0;y<h;y++) for(let x=0;x<w;x++){
+  let v=0;
+  for(let dy=-2;dy<=2 && !v;dy++){
+   const yy=y+dy; if(yy<0||yy>=h) continue;
+   for(let dx=-2;dx<=2;dx++){
+    const xx=x+dx; if(xx<0||xx>=w) continue;
+    if(mask[yy*w+xx]){ v=1; break; }
+   }
+  }
+  out[y*w+x]=v;
+ }
+ E.protect=out;
+ E.protectBox={left,right,top,bottom};
+}
+
 function paintDot(x,y){
  const r=Number($('brushSize').value)/2;
  if(E.mode==='keep'){
   E.keepCtx.fillStyle='white';circle(E.keepCtx,x,y,r);
-  // 핵심: 자동 추출 PNG(E.src)가 아니라 원본 스크린샷 기반의 정렬된 RGB(E.reference)를 사용한다.
-  // 투명해진 곳도 실제 원본 RGB와 불투명도로 복원할 수 있다.
   E.curCtx.save();E.curCtx.beginPath();E.curCtx.arc(x,y,r,0,Math.PI*2);
   E.curCtx.clip();E.curCtx.drawImage(E.reference,0,0);E.curCtx.restore();
- }else{
-  E.seedCtx.fillStyle='white';circle(E.seedCtx,x,y,r);
+  redrawEditor();
+  const note=$('editFeedback'); if(note) note.textContent='원본 색을 바로 복원했습니다.';
+  if(E.item) E.item.status.textContent='원본 색 복원 중';
+  return;
  }
+ eraseBrush(x,y,r);
 }
+
+function eraseBrush(x,y,r){
+ if(!E.open) return;
+ const w=E.current.width,h=E.current.height;
+ const picture=E.curCtx.getImageData(0,0,w,h), data=picture.data;
+ const keep=E.keepCtx.getImageData(0,0,w,h).data;
+ const tolerance=Number($('tolerance').value);
+ let erased=0, touched=0;
+ const minX=Math.max(0,Math.floor(x-r-1)), maxX=Math.min(w-1,Math.ceil(x+r+1));
+ const minY=Math.max(0,Math.floor(y-r-1)), maxY=Math.min(h-1,Math.ceil(y+r+1));
+ for(let yy=minY;yy<=maxY;yy++){
+  for(let xx=minX;xx<=maxX;xx++){
+   const dx=xx-x, dy=yy-y;
+   if(dx*dx+dy*dy>r*r) continue;
+   const idx=yy*w+xx, p=idx*4;
+   if(data[p+3]===0) continue;
+   touched++;
+   if(keep[p+3]!==0) continue;
+   if(E.protect && E.protect[idx]) continue;
+   const r0=data[p],g0=data[p+1],b0=data[p+2];
+   const hi=Math.max(r0,g0,b0), lo=Math.min(r0,g0,b0);
+   const chroma=hi-lo;
+   const softDark = hi <= Math.max(105, 118 + tolerance) && chroma <= Math.max(42, 34 + tolerance);
+   const semiJunk = data[p+3] <= Math.max(220, 150 + tolerance);
+   const edgeJunk = yy < (E.protectBox?.top ?? 0) - 2 || yy > (E.protectBox?.bottom ?? h-1) + 2 || xx < (E.protectBox?.left ?? 0) - 4 || xx > (E.protectBox?.right ?? w-1) + 4;
+   if(!(softDark || semiJunk || edgeJunk)) continue;
+   data[p+3]=0;
+   erased++;
+  }
+ }
+ if(erased>0){
+  E.curCtx.putImageData(picture,0,0);
+  E.erasedPixels += erased;
+  redrawEditor();
+ }
+ const note=$('editFeedback');
+ if(note){
+  note.textContent = erased>0
+   ? '배경/겉장식 '+erased.toLocaleString()+'픽셀을 바로 지웠습니다.'
+   : touched>0
+      ? '이 부분은 킬로그 본체 보호 영역이거나 이미 지워진 부분입니다.'
+      : '지울 부분을 칠해 주세요.';
+ }
+ if(E.item) E.item.status.textContent = erased>0 ? '배경 정리 중' : '보정 중';
+}
+
 function paintStroke(from,to){
  const d=Math.hypot(to.x-from.x,to.y-from.y);
  const step=Math.max(1,Number($('brushSize').value)/5);
- for(let s=0;s<=d;s+=step){const t=d===0?0:s/d;paintDot(from.x+(to.x-from.x)*t,from.y+(to.y-from.y)*t);}
+ for(let s=0;s<=d;s+=step){const t=d===0?0:s/d;paintDot(from.x+(to.x-from.x)*t,from.y+(to.y-from.y)*t);} 
  paintDot(to.x,to.y);
- redrawEditor();
 }
 E.view.addEventListener('pointerdown',e=>{
  if(!E.open)return;e.preventDefault();E.drawing=true;
  try{E.view.setPointerCapture(e.pointerId);}catch(err){}
- E.last=canvasPos(e);paintDot(E.last.x,E.last.y);redrawEditor();
+ E.last=canvasPos(e);paintDot(E.last.x,E.last.y);
 });
 E.view.addEventListener('pointermove',e=>{
  if(!E.open||!E.drawing)return;e.preventDefault();
@@ -329,7 +430,6 @@ function imageFromBlob(blob){
  });
 }
 async function fetchSourceReference(item){
- // 새 서버는 결과 PNG와 동일한 위치에 원본 사진의 RGB가 담긴 참조 PNG를 반환한다.
  if(item.referenceBlob) return item.referenceBlob;
  if(item.referencePromise) return item.referencePromise;
  item.referencePromise=(async()=>{
@@ -338,7 +438,7 @@ async function fetchSourceReference(item){
   const r=await fetch(API_BASE+'/extract-killlog-reference',{method:'POST',body:form});
   if(!r.ok) {
    let detail='';try{detail=(await r.json()).detail||'';}catch(e){}
-   if(r.status===404)throw Error('Render의 app.py를 원본색 복원 버전으로 먼저 교체해 주세요.');
+   if(r.status===404)throw Error('Render의 app.py를 최신 버전으로 교체해 주세요.');
    throw Error('원본 색 불러오기 실패 HTTP '+r.status+(detail?' · '+detail:''));
   }
   const blob=await r.blob();
@@ -356,7 +456,6 @@ async function openEditor(item){
  item.edit.disabled=true;
  item.status.textContent='원본 색 불러오는 중…';
  try{
-  // 추출된 알파는 유지하되, 색을 복원할 때에는 참조 PNG를 사용한다.
   const [img, ref] = await Promise.all([
     imageFromBlob(item.blob),
     fetchSourceReference(item).then(imageFromBlob)
@@ -365,185 +464,34 @@ async function openEditor(item){
   if(img.naturalWidth!==ref.naturalWidth||img.naturalHeight!==ref.naturalHeight){
     throw Error('원본 복원 이미지의 규격이 일치하지 않습니다.');
   }
-  E.open=true;E.item=item;E.drawing=false;
-  for(const c of [E.view,E.src,E.current,E.keep,E.seed,E.overlay,E.reference]){
+  E.open=true;E.item=item;E.drawing=false;E.last=null;E.erasedPixels=0;
+  for(const c of [E.view,E.src,E.current,E.keep,E.overlay,E.reference]){
    c.width=img.naturalWidth;c.height=img.naturalHeight;
   }
-  E.srcCtx.drawImage(img,0,0);E.curCtx.drawImage(img,0,0);
+  E.srcCtx.clearRect(0,0,E.src.width,E.src.height);
+  E.curCtx.clearRect(0,0,E.current.width,E.current.height);
+  E.keepCtx.clearRect(0,0,E.keep.width,E.keep.height);
+  E.overlayCtx.clearRect(0,0,E.overlay.width,E.overlay.height);
+  E.refCtx.clearRect(0,0,E.reference.width,E.reference.height);
+  E.srcCtx.drawImage(img,0,0);
+  E.curCtx.drawImage(img,0,0);
   E.refCtx.drawImage(ref,0,0);
-  E.keepCtx.clearRect(0,0,E.view.width,E.view.height);
-  E.seedCtx.clearRect(0,0,E.view.width,E.view.height);
+  buildProtectedCore();
   setEditMode('keep');$('editorModal').classList.add('show');redrawEditor();
   item.status.textContent='보정 중';
- }catch(ex){item.status.textContent='보정 창 오류: '+(ex.message||ex);}
+ }catch(ex){item.status.textContent='보정 창 오류: '+(ex.message||ex);} 
  finally{item.editorOpening=false;item.edit.disabled=false;}
 }
-function closeEditor(){E.open=false;E.item=null;E.drawing=false;$('editorModal').classList.remove('show');}
+function closeEditor(){E.open=false;E.item=null;E.drawing=false;E.last=null;$('editorModal').classList.remove('show');}
 $('closeEditor').onclick=closeEditor;
 $('editorModal').addEventListener('click',e=>{if(e.target===$('editorModal'))closeEditor();});
-
-// 배경 어두운 픽셀만 삭제. 킬로그 본체·텍스트·장식·살리기 칠한 영역 우선 보호.
-function makeAutoProtection(data,keep,w,h){
- const n=w*h;
- const art=new Uint8Array(n),rowVotes=new Int32Array(h);
- const colVotes=new Int32Array(w);
- const inRow=new Uint8Array(n);
- // 밝거나 유색인 킬로그 자체를 추적한다. 배경의 어두운 남청색은 추적하지 않는다.
- let bestY=-1,peak=0;
- for(let y=0;y<h;y++){
-  for(let x=0;x<w;x++){
-   const i=y*w+x,p=i*4;
-   if(data[p+3]<26) continue;
-   const r=data[p],g=data[p+1],b=data[p+2];
-   const max=Math.max(r,g,b),min=Math.min(r,g,b);
-   const strong=max>155 || (max>100 && max-min>47) ||
-      (max>118 && r>g+20 && r>b+17) ||
-      (max>115 && g>r+24 && g>b-17);
-   if(strong){art[i]=1;rowVotes[y]++;colVotes[x]++;}
-  }
-  if(y>h*.13 && y<h*.87 && rowVotes[y]>peak){peak=rowVotes[y];bestY=y;}
- }
- const protectedMask=new Uint8Array(n);
- // 보호되지 않은 픽셀이라도 어두운 배경 여부 판별을 별도로 통과해야 한다.
- // 유색/밝은 부분은 거리와 관계없이 자동 보호한다.
- for(let i=0;i<n;i++){
-  if(art[i] || keep[i*4+3]>0)protectedMask[i]=1;
- }
- if(bestY<0 || peak<Math.max(6,w*.015))return protectedMask;
-
- // 킬로그의 높이를 추정한다. 과도하게 넓어지지 않게 제한.
- let top=bestY, bottom=bestY;
- const limit=Math.max(8,Math.round(peak*.065));
- for(let y=bestY-1;y>=Math.max(0,bestY-38);y--){
-  if(rowVotes[y]>=limit)top=y;
- }
- for(let y=bestY+1;y<Math.min(h,bestY+39);y++){
-  if(rowVotes[y]>=limit)bottom=y;
- }
- const mid=(top+bottom)/2;
- const halfHeight=Math.max(45,Math.min(53,(bottom-top)/2+10));
- const coreTop=Math.max(0,Math.floor(mid-halfHeight));
- const coreBottom=Math.min(h-1,Math.ceil(mid+halfHeight));
- // 양쪽 장식/꼬리를 포함해 가로 배너 띠를 보호한다.
- let xMin=w,xMax=-1;
- for(let y=coreTop;y<=coreBottom;y++){
-  for(let x=0;x<w;x++)if(art[y*w+x]){xMin=Math.min(xMin,x);xMax=Math.max(xMax,x);}
- }
- if(xMax>=xMin){
-  const left=Math.max(0,xMin-32), right=w-1;
-  for(let y=coreTop;y<=coreBottom;y++){
-   for(let x=left;x<=right;x++)protectedMask[y*w+x]=1;
-  }
- }
- // 배너 띠 밖으로 돌출한 장식도 밝거나 채도가 높은 픽셀 주변은 보호.
- const radius=8;
- for(let y=0;y<h;y++){
-  for(let x=0;x<w;x++){
-   if(!art[y*w+x])continue;
-   for(let dy=-radius;dy<=radius;dy++){
-    const yy=y+dy;
-    if(yy<0||yy>=h)continue;
-    const bound=Math.floor(Math.sqrt(radius*radius-dy*dy));
-    for(let xx=Math.max(0,x-bound);xx<=Math.min(w-1,x+bound);xx++)protectedMask[yy*w+xx]=1;
-   }
-  }
- }
- return protectedMask;
-}
-
-function eraseBackground(){
- if(!E.open)return;
- const w=E.current.width,h=E.current.height,n=w*h;
- const picture=E.curCtx.getImageData(0,0,w,h),data=picture.data;
- const keep=E.keepCtx.getImageData(0,0,w,h).data;
- const seeds=E.seedCtx.getImageData(0,0,w,h).data;
- const protect=makeAutoProtection(data,keep,w,h);
- const tolerance=Number($('tolerance').value);
- const maxReach=21;
-
- function isDarkBackground(i){
-  const p=i*4;
-  if(data[p+3]<6 || protect[i])return false;
-  const r=data[p],g=data[p+1],b=data[p+2];
-  const max=Math.max(r,g,b),min=Math.min(r,g,b);
-  // 청회색·어두운 중성색만 허용: 밝고 채도 높은 문구/장식은 삭제하지 않는다.
-  if(max>145 || max-min>83)return false;
-  if(r>g+11 || r>b+13)return false; // 붉은색/금색 장식 방지
-  if(g>r+49 || g>b+33)return false; // 청록색 본체 방지
-  if(b<r-10 || b<g-24)return false;
-  return true;
- }
- function matching(i,r,g,b){
-  const p=i*4;
-  return isDarkBackground(i) &&
-    Math.abs(data[p]-r)<=tolerance &&
-    Math.abs(data[p+1]-g)<=tolerance &&
-    Math.abs(data[p+2]-b)<=tolerance;
- }
-
- // 붓이 찍힌 곳이라도 킬로그 영역/유색 장식에는 시드를 만들지 않는다.
- const starts=[];
- for(let i=0;i<n;i++)if(seeds[i*4+3]>0 && isDarkBackground(i)) starts.push(i);
- if(!starts.length){
-  E.seedCtx.clearRect(0,0,w,h);redrawEditor();
-  if(E.item)E.item.status.textContent='킬로그를 보호했습니다. 어두운 배경 쪽을 칠해 주세요.';
-  return;
- }
- // 칠한 배경 부분으로부터 반경 21px 이내만 전파한다.
- const dist=new Int16Array(n);dist.fill(-1);
- const queue=new Int32Array(n);let head=0,tail=0;
- for(const start of starts){
-  if(dist[start]===0)continue;
-  dist[start]=0;queue[tail++]=start;
- }
- while(head<tail){
-  const at=queue[head++],d=dist[at];
-  if(d>=maxReach)continue;
-  const x=at%w,y=(at/w)|0;
-  for(const next of [x>0?at-1:-1,x+1<w?at+1:-1,y>0?at-w:-1,y+1<h?at+w:-1]){
-   if(next>=0 && dist[next]<0 && isDarkBackground(next)){
-    dist[next]=d+1;queue[tail++]=next;
-   }
-  }
- }
- // 색상 일치를 추가 적용하되, 같은 색의 킬로그 몸체는 protectedMask가 차단.
- const visited=new Uint8Array(n);
- let erased=0;
- const stride=Math.max(1,Math.floor(starts.length/220));
- const stack=[];
- for(let si=0;si<starts.length;si+=stride){
-  const start=starts[si];
-  if(visited[start] || dist[start]<0)continue;
-  const p0=start*4,sr=data[p0],sg=data[p0+1],sb=data[p0+2];
-  stack.push(start);
-  while(stack.length){
-   const at=stack.pop();
-   if(visited[at] || dist[at]<0 || !matching(at,sr,sg,sb))continue;
-   visited[at]=1;
-   const p=at*4;
-   if(data[p+3]>0){data[p+3]=0;erased++;}
-   const x=at%w,y=(at/w)|0;
-   if(x>0)stack.push(at-1);
-   if(x+1<w)stack.push(at+1);
-   if(y>0)stack.push(at-w);
-   if(y+1<h)stack.push(at+w);
-  }
- }
- E.curCtx.putImageData(picture,0,0);
- E.seedCtx.clearRect(0,0,w,h);
- redrawEditor();
- if(E.item)E.item.status.textContent=erased?'어두운 배경 정리 완료 · 킬로그 보호 적용':'킬로그 보호로 삭제된 영역이 없습니다.';
-}
-$('applyBg').onclick=eraseBackground;
-$('clearPaint').onclick=()=>{
- E.keepCtx.clearRect(0,0,E.view.width,E.view.height);
- E.seedCtx.clearRect(0,0,E.view.width,E.view.height);
- redrawEditor();
-};
+$('applyBg').onclick=()=>{ const note=$('editFeedback'); if(note) note.textContent='배경 지우기는 이제 칠하는 즉시 적용됩니다.'; };
+$('clearPaint').onclick=()=>{ if(!E.open)return; E.keepCtx.clearRect(0,0,E.view.width,E.view.height); redrawEditor(); const note=$('editFeedback'); if(note) note.textContent='살리기 표시를 지웠습니다.'; };
 $('resetEdit').onclick=()=>{
  if(!E.open)return;const w=E.view.width,h=E.view.height;
  E.curCtx.clearRect(0,0,w,h);E.curCtx.drawImage(E.src,0,0);
- E.keepCtx.clearRect(0,0,w,h);E.seedCtx.clearRect(0,0,w,h);redrawEditor();
+ E.keepCtx.clearRect(0,0,w,h);buildProtectedCore();redrawEditor();
+ const note=$('editFeedback'); if(note) note.textContent='처음 추출 상태로 되돌렸습니다.';
 };
 $('saveEdit').onclick=()=>{
  if(!E.open||!E.item)return;
