@@ -74,7 +74,7 @@ select{background:#192a46;color:white;border:1px solid #587099;border-radius:10p
 <div id="editorModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="editTitle">
  <div class="modal-card">
   <div class="modal-top"><h2 id="editTitle">킬로그 보정</h2><button id="closeEditor">닫기</button></div>
-  <p class="sub">살리기: 보호할 부분에 칠하기 · 배경 지우기: 배경 위에 칠한 다음 적용</p>
+  <p class="sub">살리기: 원본 사진의 색을 다시 가져와 복구 · 배경 지우기: 칠한 배경 주변만 제거 (살린 곳 보호)</p>
   <div class="edit-tools">
    <button id="modeKeep" class="primary">살리기</button>
    <button id="modeBg">배경 지우기</button>
@@ -158,7 +158,7 @@ async function processOne(it){
   if(!blob.type.includes('png'))throw new Error('PNG가 아닌 응답이 반환됐습니다.');
   if(it.removed)return;
   if(it.resultUrl)URL.revokeObjectURL(it.resultUrl);
-  it.blob=blob;it.originalBlob=blob;it.resultUrl=URL.createObjectURL(blob);
+  it.blob=blob;it.originalBlob=blob;it.referenceBlob=null;it.referencePromise=null;it.resultUrl=URL.createObjectURL(blob);
   const pic=document.createElement('img');pic.src=it.resultUrl;pic.alt='추출된 투명 PNG';
   it.result.replaceChildren(pic);it.save.disabled=false;it.edit.disabled=false;
   it.status.textContent='추출 완료';
@@ -244,7 +244,7 @@ $('saveAll').onclick=async()=>{
 const E={
  open:false, item:null, mode:'keep', drawing:false,
  view:$('editCanvas'), src:document.createElement('canvas'), current:document.createElement('canvas'),
- keep:document.createElement('canvas'), seed:document.createElement('canvas'), overlay:document.createElement('canvas'),
+ keep:document.createElement('canvas'), seed:document.createElement('canvas'), overlay:document.createElement('canvas'), reference:document.createElement('canvas'),
  last:null
 };
 E.ctx=E.view.getContext('2d',{willReadFrequently:true});
@@ -253,6 +253,7 @@ E.curCtx=E.current.getContext('2d',{willReadFrequently:true});
 E.keepCtx=E.keep.getContext('2d',{willReadFrequently:true});
 E.seedCtx=E.seed.getContext('2d',{willReadFrequently:true});
 E.overlayCtx=E.overlay.getContext('2d',{willReadFrequently:true});
+E.refCtx=E.reference.getContext('2d',{willReadFrequently:true});
 
 function setEditMode(mode){
  E.mode=mode;
@@ -292,8 +293,10 @@ function paintDot(x,y){
  const r=Number($('brushSize').value)/2;
  if(E.mode==='keep'){
   E.keepCtx.fillStyle='white';circle(E.keepCtx,x,y,r);
+  // 핵심: 자동 추출 PNG(E.src)가 아니라 원본 스크린샷 기반의 정렬된 RGB(E.reference)를 사용한다.
+  // 투명해진 곳도 실제 원본 RGB와 불투명도로 복원할 수 있다.
   E.curCtx.save();E.curCtx.beginPath();E.curCtx.arc(x,y,r,0,Math.PI*2);
-  E.curCtx.clip();E.curCtx.drawImage(E.src,0,0);E.curCtx.restore();
+  E.curCtx.clip();E.curCtx.drawImage(E.reference,0,0);E.curCtx.restore();
  }else{
   E.seedCtx.fillStyle='white';circle(E.seedCtx,x,y,r);
  }
@@ -325,20 +328,55 @@ function imageFromBlob(blob){
   im.src=url;
  });
 }
+async function fetchSourceReference(item){
+ // 새 서버는 결과 PNG와 동일한 위치에 원본 사진의 RGB가 담긴 참조 PNG를 반환한다.
+ if(item.referenceBlob) return item.referenceBlob;
+ if(item.referencePromise) return item.referencePromise;
+ item.referencePromise=(async()=>{
+  const form=new FormData();
+  form.append('file',item.file,item.file.name);
+  const r=await fetch(API_BASE+'/extract-killlog-reference',{method:'POST',body:form});
+  if(!r.ok) {
+   let detail='';try{detail=(await r.json()).detail||'';}catch(e){}
+   if(r.status===404)throw Error('Render의 app.py를 원본색 복원 버전으로 먼저 교체해 주세요.');
+   throw Error('원본 색 불러오기 실패 HTTP '+r.status+(detail?' · '+detail:''));
+  }
+  const blob=await r.blob();
+  if(!blob.type.includes('png')) throw Error('복원용 원본 이미지가 PNG가 아닙니다.');
+  item.referenceBlob=blob;
+  return blob;
+ })();
+ try{return await item.referencePromise;}
+ finally{item.referencePromise=null;}
+}
 async function openEditor(item){
  if(!item.blob)return;
+ if(item.editorOpening)return;
+ item.editorOpening=true;
+ item.edit.disabled=true;
+ item.status.textContent='원본 색 불러오는 중…';
  try{
-  const img=await imageFromBlob(item.blob);
+  // 추출된 알파는 유지하되, 색을 복원할 때에는 참조 PNG를 사용한다.
+  const [img, ref] = await Promise.all([
+    imageFromBlob(item.blob),
+    fetchSourceReference(item).then(imageFromBlob)
+  ]);
   if(item.removed)return;
+  if(img.naturalWidth!==ref.naturalWidth||img.naturalHeight!==ref.naturalHeight){
+    throw Error('원본 복원 이미지의 규격이 일치하지 않습니다.');
+  }
   E.open=true;E.item=item;E.drawing=false;
-  for(const c of [E.view,E.src,E.current,E.keep,E.seed,E.overlay]){
+  for(const c of [E.view,E.src,E.current,E.keep,E.seed,E.overlay,E.reference]){
    c.width=img.naturalWidth;c.height=img.naturalHeight;
   }
   E.srcCtx.drawImage(img,0,0);E.curCtx.drawImage(img,0,0);
+  E.refCtx.drawImage(ref,0,0);
   E.keepCtx.clearRect(0,0,E.view.width,E.view.height);
   E.seedCtx.clearRect(0,0,E.view.width,E.view.height);
   setEditMode('keep');$('editorModal').classList.add('show');redrawEditor();
+  item.status.textContent='보정 중';
  }catch(ex){item.status.textContent='보정 창 오류: '+(ex.message||ex);}
+ finally{item.editorOpening=false;item.edit.disabled=false;}
 }
 function closeEditor(){E.open=false;E.item=null;E.drawing=false;$('editorModal').classList.remove('show');}
 $('closeEditor').onclick=closeEditor;
@@ -347,28 +385,48 @@ $('editorModal').addEventListener('click',e=>{if(e.target===$('editorModal'))clo
 // 배경 시드에서 시작한 색상 영역만 제거. 살리기로 표시한 픽셀은 보존된다.
 function eraseBackground(){
  if(!E.open)return;
- const w=E.current.width,h=E.current.height;
+ const w=E.current.width,h=E.current.height,n=w*h;
  const picture=E.curCtx.getImageData(0,0,w,h),data=picture.data;
  const keep=E.keepCtx.getImageData(0,0,w,h).data;
  const seeds=E.seedCtx.getImageData(0,0,w,h).data;
  const tol=Number($('tolerance').value);
- const marked=[];
- for(let i=0;i<w*h;i++){
+ // 배경 붓을 칠한 위치에서 너무 멀리 퍼지지 않도록 제한한다.
+ // 같은 RGB인 내부 킬로그 요소가 화면 다른 곳에 있어도 제거되지 않게 한다.
+ const maxReach=18;
+ const distance=new Int16Array(n);distance.fill(-1);
+ const queue=new Int32Array(n);let head=0,tail=0;
+ const starts=[];
+ for(let i=0;i<n;i++){
   const p=i*4;
-  if(seeds[p+3]>0 && keep[p+3]===0 && data[p+3]>0) marked.push(i);
+  if(seeds[p+3]>0 && keep[p+3]===0 && data[p+3]>0){
+   distance[i]=0;queue[tail++]=i;starts.push(i);
+  }
  }
- // 여러 지점에서 시작하되 한 번에 전체 영역 방문 처리
- const visited=new Uint8Array(w*h), stack=[];
- // 각 시드마다 색이 다를 수 있으므로 해당 시드별로 분리 처리
- for(const start of marked.filter((_,i)=>i%Math.max(1,Math.floor(marked.length/120)+1)===0)){
-  if(visited[start] || !data[start*4+3] || keep[start*4+3])continue;
+ if(!starts.length){redrawEditor();return;}
+ while(head<tail){
+  const at=queue[head++],d=distance[at];
+  if(d>=maxReach)continue;
+  const x=at%w,y=(at/w)|0;
+  for(const next of [x>0?at-1:-1,x+1<w?at+1:-1,y>0?at-w:-1,y+1<h?at+w:-1]){
+   if(next>=0&&distance[next]<0&&keep[next*4+3]===0){
+    distance[next]=d+1;queue[tail++]=next;
+   }
+  }
+ }
+ const visited=new Uint8Array(n),stack=[];
+ // 표본은 여러 색의 배경을 지원한다. 보정 대상은 씨앗으로부터 18px 이내.
+ const stride=Math.max(1,Math.floor(starts.length/170));
+ for(let j=0;j<starts.length;j+=stride){
+  const start=starts[j];
+  if(visited[start] || data[start*4+3]<8)continue;
   const sr=data[start*4],sg=data[start*4+1],sb=data[start*4+2];
   stack.push(start);
   while(stack.length){
-   const at=stack.pop();if(visited[at])continue;visited[at]=1;
+   const at=stack.pop();if(visited[at])continue;
    const p=at*4;
-   if(keep[p+3]>0||data[p+3]===0)continue;
+   if(keep[p+3] || distance[at]<0 || data[p+3]<8)continue;
    if(Math.abs(data[p]-sr)>tol||Math.abs(data[p+1]-sg)>tol||Math.abs(data[p+2]-sb)>tol)continue;
+   visited[at]=1;
    data[p+3]=0;
    const x=at%w,y=(at/w)|0;
    if(x>0)stack.push(at-1);
