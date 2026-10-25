@@ -1,11 +1,210 @@
-<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>킬로그 자동 추출 연결 테스트</title><style>
-*{box-sizing:border-box}body{margin:0;background:#0b1426;color:#eaf2ff;font:15px system-ui,'Noto Sans KR',sans-serif}main{max-width:1080px;margin:0 auto;padding:20px}h1{font-size:24px}button,.pick{display:inline-block;cursor:pointer;border:0;border-radius:12px;background:#86b0ff;color:#0a1322;padding:12px 16px;font-weight:800;font:inherit;margin:4px}button:disabled{opacity:.45;cursor:default}.secondary{background:#283c5e;color:white}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px}.card{padding:14px;border-radius:16px;border:1px solid #384f76;background:#162440;min-width:0}.card img{display:block;max-width:100%;max-height:180px;object-fit:contain;margin:8px auto}.result{display:flex;min-height:130px;align-items:center;justify-content:center;background:repeating-conic-gradient(#1f324a 0% 25%,#41526a 0% 50%) 50%/18px 18px;border-radius:10px}.note{color:#b6c9e8}#status{white-space:pre-wrap}header{margin-bottom:16px}
-</style></head><body><main><header><h1>킬로그 자동 추출 · 연결 확인</h1><p class="note">사진을 선택하면 서버로 전송해 투명 PNG로 변환합니다. 별도 서버 주소 입력은 필요 없습니다.</p><label class="pick">원본 사진 추가<input id="file" type="file" accept="image/*" multiple hidden></label><button id="all" class="secondary">전체 추출</button><button id="clear" class="secondary">전체 삭제</button><p id="status" class="note">서버 확인 중…</p></header><section id="list" class="grid"></section></main><script>
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b1426">
+<title>킬로그 자동 추출기</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+:root{color-scheme:dark}
+body{margin:0;background:#0b1426;color:#edf3ff;font-family:-apple-system,BlinkMacSystemFont,"Noto Sans KR",system-ui,sans-serif;font-size:15px}
+main{max-width:1120px;margin:auto;padding:20px 14px 80px}
+header{padding:8px 0 18px}
+h1{font-size:clamp(21px,4.5vw,29px);margin:0 0 12px}
+p{margin:8px 0 12px;line-height:1.55}
+.sub{color:#aec2df;font-size:14px}
+.toolbar{display:flex;flex-wrap:wrap;gap:9px;align-items:center;margin:16px 0}
+button,.pick{border:1px solid #384b6e;background:#243655;color:#fff;min-height:44px;border-radius:12px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:11px 14px;font:inherit;font-weight:750;white-space:nowrap}
+button.primary,.pick{background:#8eafff;color:#09152a;border:0}
+button.danger{background:#35223a;border-color:#714458;color:#ffccd0}
+button:disabled{opacity:.45;cursor:default}
+.mode-box{display:flex;flex-wrap:wrap;gap:9px;align-items:center;margin:12px 0 14px}
+.mode-box label{font-weight:750;font-size:14px;color:#ccd9ee}
+select{background:#192a46;color:white;border:1px solid #587099;border-radius:10px;font:inherit;padding:11px 12px;min-height:44px;max-width:100%}
+#status{color:#b9d3ff;margin-top:10px;white-space:pre-wrap}
+#list{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,320px),1fr));gap:12px;margin-top:16px}
+.item{border:1px solid #324b76;border-radius:18px;padding:13px;background:#152541;min-width:0}
+.item h3{word-break:break-all;margin:0 0 9px;font-size:14px;font-weight:700}
+.orig{width:100%;height:110px;object-fit:contain;background:#0b1729;border:1px solid #2a3f61;border-radius:10px}
+.result{height:150px;background:repeating-conic-gradient(#28364c 0% 25%,#3c4c65 0% 50%) 50% / 20px 20px;border-radius:10px;display:flex;align-items:center;justify-content:center;margin-top:10px;color:#c9d8ea;overflow:hidden}
+.result img{object-fit:contain;display:block;width:100%;max-height:150px}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.actions button{min-height:40px;padding:10px 12px;font-size:13px}
+.item-status{font-size:13px;color:#b2c9e9;margin:9px 0 2px}
+.tip{color:#95a9c5;font-size:12px;margin:8px 0}
+#file{display:none}
+</style>
+</head>
+<body>
+<main>
+<header>
+<h1>킬로그 자동 추출</h1>
+<p class="sub">원본 사진에서 킬로그를 추출하고 투명 PNG로 저장합니다.</p>
+<div class="toolbar">
+<label for="file" class="pick">사진 추가</label>
+<input type="file" id="file" accept="image/png,image/jpeg,image/webp,image/*" multiple>
+<button id="all" class="primary">전체 추출</button>
+<button id="saveAll">모두 저장 / 공유</button>
+<button id="clear" class="danger">전체 삭제</button>
+</div>
+<div class="mode-box">
+<label for="mode">추출 방식</label>
+<select id="mode">
+<option value="original">기본 (이전 방식)</option>
+<option value="clean">배경 정리</option>
+<option value="detail">장식 보호</option>
+</select>
+</div>
+<p class="sub">배경이 남으면 ‘배경 정리’, 끝 장식이 잘리면 ‘장식 보호’를 선택하고 다시 추출하세요.</p>
+<p id="status">서버 확인 중…</p>
+</header>
+<section id="list"></section>
+</main>
+<script>
 'use strict';
-const API_BASE=(location.hostname.endsWith('.onrender.com')?location.origin:'https://video-fsp5.onrender.com').replace(/\/+$/, '');
-const $=id=>document.getElementById(id),items=[];
-async function serverHealth(){try{let r=await fetch(API_BASE+'/health'); if(!r.ok)throw Error('HTTP '+r.status);let d=await r.json();$('status').textContent=(d.ok === true && (d.endpoint || '').includes('/extract-killlog'))?'서버 연결 성공 · 자동 추출 준비 완료 (연결 수정 적용)':'서버 응답을 확인해 주세요. (엔진: '+(d.engine||'알 수 없음')+')'}catch(e){$('status').textContent='서버 연결 확인 실패: '+e.message;}}serverHealth();
-function add(file){let el=document.createElement('article');el.className='card';let h=document.createElement('h3');h.textContent=file.name;let src=URL.createObjectURL(file),img=document.createElement('img');img.src=src;img.alt='원본';let result=document.createElement('div');result.className='result';result.textContent='변환 전';let status=document.createElement('p');status.className='note';status.textContent='대기 중';let process=document.createElement('button');process.textContent='추출';let save=document.createElement('button');save.className='secondary';save.textContent='PNG 저장';save.disabled=true;let del=document.createElement('button');del.className='secondary';del.textContent='삭제';el.append(h,img,result,status,process,save,del);$('list').append(el);let it={file,el,src,process,save,status,result,url:null,blob:null,removed:false};items.push(it);process.onclick=()=>extract(it);save.onclick=()=>{if(!it.url)return;let a=document.createElement('a');a.href=it.url;a.download=file.name.replace(/\.[^.]+$/,'')+'_killlog.png';a.click()};del.onclick=()=>{it.removed=true;URL.revokeObjectURL(it.src);if(it.url)URL.revokeObjectURL(it.url);it.el.remove();items.splice(items.indexOf(it),1)};}
-async function extract(it){if(it.removed)return;it.process.disabled=true;it.status.textContent='추출 중…';try{let fd=new FormData();fd.append('file',it.file,it.file.name);let r=await fetch(API_BASE+'/extract-killlog',{method:'POST',body:fd});if(!r.ok){let message='';try{let data=await r.json();message=data.detail||JSON.stringify(data)}catch(e){}throw Error('HTTP '+r.status+(message?' · '+message:''));}let blob=await r.blob();if(!blob.type.includes('png'))throw Error('서버가 PNG 대신 '+blob.type+'을 반환했습니다.');if(it.removed)return;if(it.url)URL.revokeObjectURL(it.url);it.url=URL.createObjectURL(blob);it.blob=blob;it.result.replaceChildren();let image=document.createElement('img');image.alt='PNG 추출 결과';image.src=it.url;it.result.append(image);it.save.disabled=false;it.status.textContent='추출 완료';}catch(e){let msg=e.message||String(e);if(msg.includes('Failed to fetch')||msg.includes('NetworkError'))msg='서버 통신 실패(주소·CORS·배포 상태 확인)';it.status.textContent='추출 실패: '+msg;}finally{it.process.disabled=false;}}
-$('file').onchange=e=>{[...(e.target.files||[])].forEach(add);e.target.value=''};$('all').onclick=async()=>{for(let it of [...items])await extract(it)};$('clear').onclick=()=>{for(let it of [...items]){it.removed=true;URL.revokeObjectURL(it.src);if(it.url)URL.revokeObjectURL(it.url);it.el.remove()}items.length=0};
-</script></body></html>
+const API_BASE=(location.hostname.endsWith('.onrender.com')?location.origin:'https://video-fsp5.onrender.com').replace(/\/+$/,'');
+const $=id=>document.getElementById(id);
+const items=[];
+let counter=0;
+let processingAll=false;
+function serverMessage(message){$('status').textContent=message;}
+async function checkServer(){
+ try{
+  const r=await fetch(API_BASE+'/health',{cache:'no-store'});
+  if(!r.ok)throw new Error('HTTP '+r.status);
+  const d=await r.json();
+  serverMessage(d.ok && (d.endpoint||'').includes('/extract-killlog') ? (Array.isArray(d.modes) ? '서버 연결됨 · 추출 개선 모드 사용 가능' : '이전 서버입니다. app.py를 교체하면 배경 정리·장식 보호를 사용할 수 있습니다.') : '서버 응답을 확인해 주세요.');
+ }catch(error){serverMessage('서버 연결 실패: '+(error.message||error));}
+}
+checkServer();
+function createButton(text,cls){const b=document.createElement('button');b.textContent=text;b.className=cls||'';return b;}
+function addFile(file){
+ const root=document.createElement('article');root.className='item';
+ const title=document.createElement('h3');title.textContent=file.name;
+ const img=document.createElement('img');img.className='orig';img.alt='원본';
+ const sourceUrl=URL.createObjectURL(file);img.src=sourceUrl;
+ const result=document.createElement('div');result.className='result';result.textContent='추출 전';
+ const status=document.createElement('p');status.className='item-status';status.textContent='대기 중';
+ const actions=document.createElement('div');actions.className='actions';
+ const run=createButton('추출','primary');
+ const save=createButton('PNG 저장 / 공유');save.disabled=true;
+ const remove=createButton('삭제','danger');
+ actions.append(run,save,remove);root.append(title,img,result,status,actions);
+ $('list').append(root);
+ const item={id:++counter,file,sourceUrl,root,result,status,run,save,blob:null,resultUrl:null,removed:false};
+ items.push(item);
+ run.onclick=()=>processOne(item);
+ save.onclick=()=>shareOne(item);
+ remove.onclick=()=>removeOne(item);
+}
+function removeOne(it){
+ it.removed=true;
+ URL.revokeObjectURL(it.sourceUrl);
+ if(it.resultUrl)URL.revokeObjectURL(it.resultUrl);
+ it.root.remove();
+ const idx=items.indexOf(it);if(idx>=0)items.splice(idx,1);
+}
+$('file').onchange=e=>{for(const file of e.target.files||[])addFile(file);e.target.value='';};
+function friendlyError(error){
+ const s=String(error?.message||error);
+ if(/Failed to fetch|NetworkError|Load failed/i.test(s))return '서버에 연결할 수 없습니다. Render 주소와 배포 상태를 확인하세요.';
+ return s;
+}
+async function processOne(it){
+ if(it.removed)return;
+ it.run.disabled=true;it.status.textContent='추출 중…';
+ const currentMode=$('mode').value;
+ try{
+  const form=new FormData();form.append('file',it.file,it.file.name);form.append('mode',currentMode);
+  const response=await fetch(API_BASE+'/extract-killlog',{method:'POST',body:form});
+  if(!response.ok){let details='';try{const data=await response.json();details=data.detail||'';}catch(e){}
+   throw new Error('HTTP '+response.status+(details?' · '+details:''));}
+  const blob=await response.blob();
+  if(!blob.type.includes('png'))throw new Error('PNG가 아닌 응답이 반환됐습니다.');
+  if(it.removed)return;
+  if(it.resultUrl)URL.revokeObjectURL(it.resultUrl);
+  it.blob=blob;it.resultUrl=URL.createObjectURL(blob);
+  const pic=document.createElement('img');pic.src=it.resultUrl;pic.alt='추출된 투명 PNG';
+  it.result.replaceChildren(pic);it.save.disabled=false;
+  it.status.textContent='추출 완료 · '+({'original':'기본','clean':'배경 정리','detail':'장식 보호'}[currentMode]||currentMode);
+ }catch(error){it.status.textContent='추출 실패: '+friendlyError(error);}
+ finally{it.run.disabled=false;}
+}
+$('all').onclick=async()=>{
+ if(processingAll)return;
+ processingAll=true;$('all').disabled=true;
+ try{for(const it of [...items]){if(!it.removed)await processOne(it);}}
+ finally{processingAll=false;$('all').disabled=false;}
+};
+$('clear').onclick=()=>{for(const it of [...items])removeOne(it);serverMessage('목록이 비워졌습니다.');};
+function filename(it){return it.file.name.replace(/\.[^.]+$/,'').slice(0,100)+'_killlog.png';}
+function downloadBlob(blob,name){const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);}
+function canShareFiles(files){try{return !!(navigator.canShare&&navigator.share&&navigator.canShare({files}));}catch(e){return false;}}
+async function shareOne(it){
+ if(!it.blob)return;
+ const file=new File([it.blob],filename(it),{type:'image/png'});
+ if(canShareFiles([file])){
+  try{await navigator.share({files:[file]});return;}
+  catch(error){if(error?.name==='AbortError')return;}
+ }
+ downloadBlob(it.blob,filename(it));
+}
+function crc32(data){
+ let crc=0xffffffff;
+ for(let i=0;i<data.length;i++){
+  crc^=data[i];
+  for(let k=0;k<8;k++)crc=(crc&1)?((crc>>>1)^0xedb88320):(crc>>>1);
+ }
+ return(crc^0xffffffff)>>>0;
+}
+function writeU16(view,at,value){view.setUint16(at,value,true)}
+function writeU32(view,at,value){view.setUint32(at,value>>>0,true)}
+async function createZip(ready){
+ const encoder=new TextEncoder();
+ const entries=[];let offset=0;
+ for(const it of ready){
+  const name=encoder.encode(filename(it));
+  const data=new Uint8Array(await it.blob.arrayBuffer());
+  const crc=crc32(data);
+  const lh=new Uint8Array(30+name.length);
+  const h=new DataView(lh.buffer);
+  writeU32(h,0,0x04034b50);writeU16(h,4,20);writeU16(h,6,0x0800);writeU16(h,8,0);
+  writeU32(h,14,crc);writeU32(h,18,data.length);writeU32(h,22,data.length);writeU16(h,26,name.length);
+  lh.set(name,30);
+  entries.push({name,data,crc,lh,offset});
+  offset+=lh.length+data.length;
+ }
+ const locals=[];const centrals=[];
+ for(const e of entries){
+  locals.push(e.lh,e.data);
+  const cd=new Uint8Array(46+e.name.length);const v=new DataView(cd.buffer);
+  writeU32(v,0,0x02014b50);writeU16(v,4,20);writeU16(v,6,20);writeU16(v,8,0x0800);
+  writeU16(v,10,0);writeU32(v,16,e.crc);writeU32(v,20,e.data.length);
+  writeU32(v,24,e.data.length);writeU16(v,28,e.name.length);writeU32(v,42,e.offset);cd.set(e.name,46);
+  centrals.push(cd);
+ }
+ const centralSize=centrals.reduce((s,p)=>s+p.length,0);
+ const end=new Uint8Array(22);const view=new DataView(end.buffer);
+ writeU32(view,0,0x06054b50);writeU16(view,8,entries.length);writeU16(view,10,entries.length);
+ writeU32(view,12,centralSize);writeU32(view,16,offset);
+ return new Blob([...locals,...centrals,end],{type:'application/zip'});
+}
+$('saveAll').onclick=async()=>{
+ const ready=items.filter(it=>it.blob&&!it.removed);
+ if(!ready.length){serverMessage('먼저 사진을 추출해 주세요.');return;}
+ const files=ready.map(it=>new File([it.blob],filename(it),{type:'image/png'}));
+ if(canShareFiles(files)){
+  try{await navigator.share({files});return;}
+  catch(error){if(error?.name==='AbortError')return;}
+ }
+ // Browser/native share targets cannot be forced to include KakaoTalk or Gallery.
+ // ZIP fallback guarantees a *single* download, not dozens of separate downloads.
+ $('saveAll').disabled=true;serverMessage('여러 장 공유를 지원하지 않아 ZIP 파일로 저장합니다.');
+ try{const zip=await createZip(ready);downloadBlob(zip,'killlog_'+ready.length+'photos.zip');}
+ catch(error){serverMessage('ZIP 저장 실패: '+friendlyError(error));}
+ finally{$('saveAll').disabled=false;}
+};
+</script>
+</body>
+</html>
