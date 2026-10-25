@@ -74,13 +74,13 @@ select{background:#192a46;color:white;border:1px solid #587099;border-radius:10p
 <div id="editorModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="editTitle">
  <div class="modal-card">
   <div class="modal-top"><h2 id="editTitle">킬로그 보정</h2><button id="closeEditor">닫기</button></div>
-  <p class="sub">살리기: 원본 사진의 색을 다시 가져와 복구 · 배경 지우기: 칠한 배경 주변만 제거 (살린 곳 보호)</p>
+  <p class="sub">살리기: 원본 사진의 색을 다시 가져와 복구 · 배경 지우기: 어두운 배경만 제거 · 킬로그/장식 자동 보호</p>
   <div class="edit-tools">
    <button id="modeKeep" class="primary">살리기</button>
    <button id="modeBg">배경 지우기</button>
    <label>붓 크기 <input id="brushSize" type="range" min="4" max="70" value="22"></label>
    <span class="badge" id="brushLabel">22px</span>
-   <label>색상 허용치 <input id="tolerance" type="range" min="5" max="90" value="30"></label>
+   <label>배경 색상 허용치 <input id="tolerance" type="range" min="5" max="90" value="30"></label>
    <span class="badge" id="tolLabel">30</span>
   </div>
   <div class="edit-wrap"><canvas id="editCanvas" width="760" height="190"></canvas></div>
@@ -382,52 +382,146 @@ function closeEditor(){E.open=false;E.item=null;E.drawing=false;$('editorModal')
 $('closeEditor').onclick=closeEditor;
 $('editorModal').addEventListener('click',e=>{if(e.target===$('editorModal'))closeEditor();});
 
-// 배경 시드에서 시작한 색상 영역만 제거. 살리기로 표시한 픽셀은 보존된다.
+// 배경 어두운 픽셀만 삭제. 킬로그 본체·텍스트·장식·살리기 칠한 영역 우선 보호.
+function makeAutoProtection(data,keep,w,h){
+ const n=w*h;
+ const art=new Uint8Array(n),rowVotes=new Int32Array(h);
+ const colVotes=new Int32Array(w);
+ const inRow=new Uint8Array(n);
+ // 밝거나 유색인 킬로그 자체를 추적한다. 배경의 어두운 남청색은 추적하지 않는다.
+ let bestY=-1,peak=0;
+ for(let y=0;y<h;y++){
+  for(let x=0;x<w;x++){
+   const i=y*w+x,p=i*4;
+   if(data[p+3]<26) continue;
+   const r=data[p],g=data[p+1],b=data[p+2];
+   const max=Math.max(r,g,b),min=Math.min(r,g,b);
+   const strong=max>155 || (max>100 && max-min>47) ||
+      (max>118 && r>g+20 && r>b+17) ||
+      (max>115 && g>r+24 && g>b-17);
+   if(strong){art[i]=1;rowVotes[y]++;colVotes[x]++;}
+  }
+  if(y>h*.13 && y<h*.87 && rowVotes[y]>peak){peak=rowVotes[y];bestY=y;}
+ }
+ const protectedMask=new Uint8Array(n);
+ // 보호되지 않은 픽셀이라도 어두운 배경 여부 판별을 별도로 통과해야 한다.
+ // 유색/밝은 부분은 거리와 관계없이 자동 보호한다.
+ for(let i=0;i<n;i++){
+  if(art[i] || keep[i*4+3]>0)protectedMask[i]=1;
+ }
+ if(bestY<0 || peak<Math.max(6,w*.015))return protectedMask;
+
+ // 킬로그의 높이를 추정한다. 과도하게 넓어지지 않게 제한.
+ let top=bestY, bottom=bestY;
+ const limit=Math.max(8,Math.round(peak*.065));
+ for(let y=bestY-1;y>=Math.max(0,bestY-38);y--){
+  if(rowVotes[y]>=limit)top=y;
+ }
+ for(let y=bestY+1;y<Math.min(h,bestY+39);y++){
+  if(rowVotes[y]>=limit)bottom=y;
+ }
+ const mid=(top+bottom)/2;
+ const halfHeight=Math.max(45,Math.min(53,(bottom-top)/2+10));
+ const coreTop=Math.max(0,Math.floor(mid-halfHeight));
+ const coreBottom=Math.min(h-1,Math.ceil(mid+halfHeight));
+ // 양쪽 장식/꼬리를 포함해 가로 배너 띠를 보호한다.
+ let xMin=w,xMax=-1;
+ for(let y=coreTop;y<=coreBottom;y++){
+  for(let x=0;x<w;x++)if(art[y*w+x]){xMin=Math.min(xMin,x);xMax=Math.max(xMax,x);}
+ }
+ if(xMax>=xMin){
+  const left=Math.max(0,xMin-32), right=w-1;
+  for(let y=coreTop;y<=coreBottom;y++){
+   for(let x=left;x<=right;x++)protectedMask[y*w+x]=1;
+  }
+ }
+ // 배너 띠 밖으로 돌출한 장식도 밝거나 채도가 높은 픽셀 주변은 보호.
+ const radius=8;
+ for(let y=0;y<h;y++){
+  for(let x=0;x<w;x++){
+   if(!art[y*w+x])continue;
+   for(let dy=-radius;dy<=radius;dy++){
+    const yy=y+dy;
+    if(yy<0||yy>=h)continue;
+    const bound=Math.floor(Math.sqrt(radius*radius-dy*dy));
+    for(let xx=Math.max(0,x-bound);xx<=Math.min(w-1,x+bound);xx++)protectedMask[yy*w+xx]=1;
+   }
+  }
+ }
+ return protectedMask;
+}
+
 function eraseBackground(){
  if(!E.open)return;
  const w=E.current.width,h=E.current.height,n=w*h;
  const picture=E.curCtx.getImageData(0,0,w,h),data=picture.data;
  const keep=E.keepCtx.getImageData(0,0,w,h).data;
  const seeds=E.seedCtx.getImageData(0,0,w,h).data;
- const tol=Number($('tolerance').value);
- // 배경 붓을 칠한 위치에서 너무 멀리 퍼지지 않도록 제한한다.
- // 같은 RGB인 내부 킬로그 요소가 화면 다른 곳에 있어도 제거되지 않게 한다.
- const maxReach=18;
- const distance=new Int16Array(n);distance.fill(-1);
- const queue=new Int32Array(n);let head=0,tail=0;
- const starts=[];
- for(let i=0;i<n;i++){
+ const protect=makeAutoProtection(data,keep,w,h);
+ const tolerance=Number($('tolerance').value);
+ const maxReach=21;
+
+ function isDarkBackground(i){
   const p=i*4;
-  if(seeds[p+3]>0 && keep[p+3]===0 && data[p+3]>0){
-   distance[i]=0;queue[tail++]=i;starts.push(i);
-  }
+  if(data[p+3]<6 || protect[i])return false;
+  const r=data[p],g=data[p+1],b=data[p+2];
+  const max=Math.max(r,g,b),min=Math.min(r,g,b);
+  // 청회색·어두운 중성색만 허용: 밝고 채도 높은 문구/장식은 삭제하지 않는다.
+  if(max>145 || max-min>83)return false;
+  if(r>g+11 || r>b+13)return false; // 붉은색/금색 장식 방지
+  if(g>r+49 || g>b+33)return false; // 청록색 본체 방지
+  if(b<r-10 || b<g-24)return false;
+  return true;
  }
- if(!starts.length){redrawEditor();return;}
+ function matching(i,r,g,b){
+  const p=i*4;
+  return isDarkBackground(i) &&
+    Math.abs(data[p]-r)<=tolerance &&
+    Math.abs(data[p+1]-g)<=tolerance &&
+    Math.abs(data[p+2]-b)<=tolerance;
+ }
+
+ // 붓이 찍힌 곳이라도 킬로그 영역/유색 장식에는 시드를 만들지 않는다.
+ const starts=[];
+ for(let i=0;i<n;i++)if(seeds[i*4+3]>0 && isDarkBackground(i)) starts.push(i);
+ if(!starts.length){
+  E.seedCtx.clearRect(0,0,w,h);redrawEditor();
+  if(E.item)E.item.status.textContent='킬로그를 보호했습니다. 어두운 배경 쪽을 칠해 주세요.';
+  return;
+ }
+ // 칠한 배경 부분으로부터 반경 21px 이내만 전파한다.
+ const dist=new Int16Array(n);dist.fill(-1);
+ const queue=new Int32Array(n);let head=0,tail=0;
+ for(const start of starts){
+  if(dist[start]===0)continue;
+  dist[start]=0;queue[tail++]=start;
+ }
  while(head<tail){
-  const at=queue[head++],d=distance[at];
+  const at=queue[head++],d=dist[at];
   if(d>=maxReach)continue;
   const x=at%w,y=(at/w)|0;
   for(const next of [x>0?at-1:-1,x+1<w?at+1:-1,y>0?at-w:-1,y+1<h?at+w:-1]){
-   if(next>=0&&distance[next]<0&&keep[next*4+3]===0){
-    distance[next]=d+1;queue[tail++]=next;
+   if(next>=0 && dist[next]<0 && isDarkBackground(next)){
+    dist[next]=d+1;queue[tail++]=next;
    }
   }
  }
- const visited=new Uint8Array(n),stack=[];
- // 표본은 여러 색의 배경을 지원한다. 보정 대상은 씨앗으로부터 18px 이내.
- const stride=Math.max(1,Math.floor(starts.length/170));
- for(let j=0;j<starts.length;j+=stride){
-  const start=starts[j];
-  if(visited[start] || data[start*4+3]<8)continue;
-  const sr=data[start*4],sg=data[start*4+1],sb=data[start*4+2];
+ // 색상 일치를 추가 적용하되, 같은 색의 킬로그 몸체는 protectedMask가 차단.
+ const visited=new Uint8Array(n);
+ let erased=0;
+ const stride=Math.max(1,Math.floor(starts.length/220));
+ const stack=[];
+ for(let si=0;si<starts.length;si+=stride){
+  const start=starts[si];
+  if(visited[start] || dist[start]<0)continue;
+  const p0=start*4,sr=data[p0],sg=data[p0+1],sb=data[p0+2];
   stack.push(start);
   while(stack.length){
-   const at=stack.pop();if(visited[at])continue;
-   const p=at*4;
-   if(keep[p+3] || distance[at]<0 || data[p+3]<8)continue;
-   if(Math.abs(data[p]-sr)>tol||Math.abs(data[p+1]-sg)>tol||Math.abs(data[p+2]-sb)>tol)continue;
+   const at=stack.pop();
+   if(visited[at] || dist[at]<0 || !matching(at,sr,sg,sb))continue;
    visited[at]=1;
-   data[p+3]=0;
+   const p=at*4;
+   if(data[p+3]>0){data[p+3]=0;erased++;}
    const x=at%w,y=(at/w)|0;
    if(x>0)stack.push(at-1);
    if(x+1<w)stack.push(at+1);
@@ -438,6 +532,7 @@ function eraseBackground(){
  E.curCtx.putImageData(picture,0,0);
  E.seedCtx.clearRect(0,0,w,h);
  redrawEditor();
+ if(E.item)E.item.status.textContent=erased?'어두운 배경 정리 완료 · 킬로그 보호 적용':'킬로그 보호로 삭제된 영역이 없습니다.';
 }
 $('applyBg').onclick=eraseBackground;
 $('clearPaint').onclick=()=>{
