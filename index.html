@@ -1,1011 +1,182 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ko">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport"
-content="width=device-width,initial-scale=1">
-<title>MiniCut Pro</title>
-
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0c101d">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>PIXEL UP | 모바일 화질 개선</title>
 <style>
-*{box-sizing:border-box}
-
-body{
- margin:0;
- background:#111;
- color:white;
- font-family:Arial,sans-serif;
-}
-
-header{
- background:#202020;
- padding:18px;
- text-align:center;
- font-size:23px;
- font-weight:bold;
-}
-
-main{
- max-width:1000px;
- margin:auto;
- padding:15px;
-}
-
-.panel{
- background:#222;
- padding:16px;
- margin-bottom:14px;
- border-radius:12px;
-}
-
-.panel h3{
- margin-top:0;
-}
-
-.preview{
- background:#000;
- border-radius:12px;
- overflow:hidden;
- margin-bottom:15px;
-}
-
-canvas{
- display:block;
- width:100%;
- background:#000;
-}
-
-video{
- display:none;
-}
-
-button{
- background:#00c896;
- border:0;
- border-radius:8px;
- padding:12px 16px;
- color:#061c15;
- font-weight:bold;
- margin:5px 3px;
- cursor:pointer;
-}
-
-button:disabled{
- opacity:.45;
-}
-
-input[type=range]{
- width:100%;
-}
-
-input[type=file]{
- max-width:100%;
-}
-
-input[type=text],
-input[type=number],
-select{
- background:#333;
- color:white;
- border:1px solid #555;
- border-radius:6px;
- padding:9px;
- max-width:100%;
-}
-
-label{
- display:block;
- margin-top:12px;
- margin-bottom:5px;
-}
-
-#status{
- color:#00e5aa;
- white-space:pre-wrap;
- overflow-wrap:anywhere;
-}
-
-#progress{
- width:100%;
- height:18px;
-}
-
-.small{
- color:#aaa;
- font-size:13px;
- line-height:1.6;
-}
-
-#saveLink{
- display:none;
- color:#00e5aa;
- font-weight:bold;
- margin-top:12px;
-}
+:root{color-scheme:dark;--bg:#080d18;--panel:#111a2b;--panel2:#18233a;--line:#29364d;--ink:#f2f6ff;--muted:#a1afc6;--blue:#7a9dff;--cyan:#5ee6d5;--shadow:0 18px 50px #0005}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{scroll-behavior:smooth}
+body{margin:0;min-height:100vh;background:radial-gradient(1000px 650px at 0% -20%,#26315d 0%,transparent 65%),radial-gradient(700px 500px at 100% 0%,#073c46 0%,transparent 65%),var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Noto Sans KR","Malgun Gothic",sans-serif;line-height:1.45}
+button,input,select{font:inherit}
+button{cursor:pointer;touch-action:manipulation}
+button:disabled{opacity:.42;cursor:not-allowed}
+.app{max-width:980px;width:100%;padding:26px 16px 90px;margin:auto;min-width:0;overflow-x:clip}
+.top{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:25px}
+.brand{display:flex;gap:12px;align-items:center}.logo{display:grid;place-items:center;width:47px;height:47px;border-radius:15px;background:linear-gradient(135deg,#87a8ff,#58e5d1);color:#091328;font-size:25px;font-weight:1000;box-shadow:0 10px 28px #5b8df933}
+.brand strong{font-size:21px;letter-spacing:.04em}.brand small{display:block;font-size:12px;color:var(--muted);font-weight:600;letter-spacing:0}
+.local{border:1px solid #28534d;border-radius:99px;padding:7px 12px;color:#9ceada;font-size:12px;background:#12312f;font-weight:700;white-space:nowrap}
+.hero{margin-bottom:22px}.eyebrow{font-size:12px;letter-spacing:.15em;color:var(--cyan);font-weight:900}.hero h1{font-size:clamp(25px,4.7vw,39px);line-height:1.2;margin:8px 0 9px;letter-spacing:-.04em}.hero p{color:var(--muted);font-size:14px;line-height:1.65;margin:0}
+.tabs{display:flex;background:#101a2b;border:1px solid var(--line);padding:5px;border-radius:16px;gap:7px;margin-bottom:15px}.tab{width:50%;border:0;border-radius:12px;background:transparent;color:var(--muted);min-height:49px;font-weight:850;font-size:15px}.tab.active{color:#fff;background:linear-gradient(130deg,#3c5baf,#235c6a);box-shadow:0 5px 20px #0004}
+.panel{border:1px solid var(--line);border-radius:19px;min-width:0;padding:22px;background:linear-gradient(145deg,#132036ec,#111a2bf2);box-shadow:var(--shadow);margin-bottom:16px}
+.panel h2{font-size:18px;letter-spacing:-.025em;margin:0 0 5px}.panel .hint{font-size:13px;color:var(--muted);line-height:1.65;margin:0 0 16px}
+.drop{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;border:1.5px dashed #4b6585;border-radius:17px;background:#0e192b;padding:30px 13px;text-align:center;min-height:185px;transition:background .15s,border-color .15s;cursor:pointer}
+.drop.drag{background:#1a3453;border-color:var(--cyan)}.drop-icon{display:grid;place-items:center;width:56px;height:56px;border-radius:18px;background:#213b5c;font-size:27px;color:#9ecaff}.drop strong{font-size:16px}.drop span:last-child{color:var(--muted);font-size:12px}.drop input{display:none}
+.meta{margin-top:13px;display:flex;flex-wrap:wrap;align-items:center;gap:7px}.chip{font-size:12px;color:#d5e4fa;background:#1b2b45;border:1px solid #324664;padding:5px 9px;border-radius:9px;max-width:100%;overflow-wrap:anywhere}
+.workgrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;min-width:0}.workgrid>.panel{margin-bottom:0;min-width:0;width:100%}
+.segment{display:flex;gap:8px}.segment button{flex:1;padding:11px 8px;min-height:52px;border-radius:12px;border:1px solid #384866;background:#172640;color:#b9c5d8;font-weight:850;font-size:14px}.segment button.active{background:linear-gradient(140deg,#3151a2,#237185);color:white;border-color:#6299e3}
+.setting{margin-top:19px}.shead{display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:800;margin-bottom:8px}.shead output{color:#a7dfef;font-variant-numeric:tabular-nums}.setting input[type=range],.compareSlider{accent-color:#73acff;width:100%;cursor:pointer}.setting input[type=range]{height:22px}.settings-note{font-size:12px;color:var(--muted);line-height:1.6;margin-top:12px}
+.toggle{display:flex;align-items:center;gap:10px;font-size:13px;color:#c9d7ea;padding-top:15px}.toggle input{width:19px;height:19px;accent-color:#74a3f1}
+.preview{border-radius:15px;background:repeating-conic-gradient(#182337 0% 25%,#1b2940 0% 50%) 50%/26px 26px;min-height:205px;display:grid;grid-template-columns:minmax(0,1fr);place-items:center;overflow:hidden;position:relative;padding:12px}
+.emptyPreview{color:var(--muted);font-size:13px;text-align:center;padding:25px}.compare{position:relative;overflow:hidden;max-width:100%;min-width:0;justify-self:center;max-height:445px;border-radius:10px;box-shadow:0 10px 35px #0008}.compare canvas{display:block;width:100%;height:100%;position:absolute;inset:0}.compare canvas.before{position:absolute}.compare canvas.after{clip-path:inset(0 0 0 50%)}.compare .vline{position:absolute;top:0;bottom:0;width:2px;background:#fff;left:50%;pointer-events:none}.compare .vline:after{content:'↔';position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:#fff;color:#182642;border-radius:50%;height:33px;width:33px;display:grid;place-items:center;font-weight:900;box-shadow:0 2px 10px #0007}.compare .flag{position:absolute;top:9px;padding:5px 8px;background:#0a101dd0;border:1px solid #fff2;border-radius:8px;font-size:11px;font-weight:850}.compare .flag.a{left:9px}.compare .flag.b{right:9px}
+.previewFooter{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:13px;font-size:12px;color:var(--muted)}.previewFooter label{white-space:nowrap}
+#video{display:block;width:100%;max-height:410px;object-fit:contain;border-radius:8px;background:#04070c}
+.actions{display:flex;gap:9px;margin-top:17px;flex-wrap:wrap}.btn{border:1px solid #3b5270;background:#20304a;color:#edf6ff;border-radius:12px;font-weight:850;padding:13px 18px;min-height:50px;flex:1;font-size:14px}.btn.primary{background:linear-gradient(110deg,#6b8fff,#46b9c3);color:#061321;border:0;box-shadow:0 6px 24px #4371aa44}.btn.secondary{background:#1b2d46}.btn.danger{background:#38212c;border-color:#794050;color:#ffcbd8;flex:0 1 auto}
+.status{min-height:38px;border:1px solid #284461;background:#102136;color:#c8e8f3;padding:11px 13px;border-radius:12px;font-size:13px;line-height:1.55;margin-top:15px;white-space:pre-wrap;overflow-wrap:anywhere}.status.warn{color:#ffe0ae;background:#33281c;border-color:#735537}.status.good{color:#b8fbe0;background:#10332c;border-color:#246e5c}.progressTrack{width:100%;background:#243148;height:8px;border-radius:99px;margin-top:12px;overflow:hidden;display:none}.progressBar{height:100%;width:0;background:linear-gradient(90deg,#748eff,#57e7ca);transition:width .25s}
+.notice{padding:14px 16px;border:1px solid #344057;background:#101826;border-radius:15px;font-size:12px;color:#aebbd1;line-height:1.75}.notice strong{color:#e5eeff}.footer{text-align:center;color:#71819b;font-size:11px;margin-top:24px}
+[hidden]{display:none!important}
+@media(max-width:700px){.workgrid{grid-template-columns:minmax(0,1fr)}.app{padding:17px 12px 65px}.top{margin-bottom:26px}.local{font-size:10px;padding:6px 9px}.workgrid{grid-template-columns:1fr;gap:13px}.panel{padding:17px;border-radius:16px}.hero h1{font-size:28px}.actions .btn{min-width:calc(50% - 5px)}.actions .btn.primary{flex-basis:100%}.drop{padding:24px 10px;min-height:160px}.preview{min-height:190px}.previewFooter{flex-wrap:wrap}}
 </style>
 </head>
-
 <body>
+<main class="app">
+  <header class="top"><div class="brand"><div class="logo">↗</div><div><strong>PIXEL UP</strong><small>모바일 화질 개선 스튜디오</small></div></div><div class="local">기기 내에서 처리</div></header>
+  <div class="hero"><div class="eyebrow">IMAGE &amp; VIDEO ENHANCER</div><h1>사진과 영상을<br>더 크고 선명하게.</h1><p>설치나 컴퓨터 없이 아이폰 · 아이패드 · 삼성폰 · 삼성패드의 브라우저에서 사용하세요.<br>1080p 또는 4K로 출력하고 밝기와 색감을 조절할 수 있습니다.</p></div>
+  <div class="tabs" role="tablist"><button type="button" class="tab active" id="photoTab" role="tab" aria-selected="true">▧ 사진 개선</button><button type="button" class="tab" id="videoTab" role="tab" aria-selected="false">▷ 영상 개선</button></div>
 
-<header>🎬 MiniCut Pro</header>
+  <section id="photoSection">
+    <section class="panel"><h2>1. 사진 불러오기</h2><p class="hint">내 기기의 사진을 선택하세요. 사진 파일은 서버로 업로드되지 않습니다.</p>
+      <label class="drop" id="imageDrop" for="imageFile"><span class="drop-icon">▧</span><strong>사진 선택하기</strong><span>여기를 누르거나 사진을 끌어다 놓으세요</span><input type="file" accept="image/*" id="imageFile"></label>
+      <div class="meta" id="imageMeta" hidden></div></section>
+    <div class="workgrid">
+      <section class="panel"><h2>2. 화질 설정</h2><p class="hint">원본 비율을 유지하며 1080p / 4K 범위로 저장합니다.</p>
+        <div class="segment" id="imageRes"><button class="active" data-res="1080" type="button">FULL HD<br>1080p</button><button data-res="4k" type="button">ULTRA HD<br>4K</button></div>
+        <div class="setting"><div class="shead"><label for="photoSharp">선명도</label><output id="photoSharpValue">40</output></div><input id="photoSharp" type="range" min="0" max="100" value="40"></div>
+        <div class="setting"><div class="shead"><label for="photoBright">밝기</label><output id="photoBrightValue">0</output></div><input id="photoBright" type="range" min="-40" max="40" value="0"></div>
+        <div class="setting"><div class="shead"><label for="photoContrast">대비</label><output id="photoContrastValue">8</output></div><input id="photoContrast" type="range" min="-30" max="50" value="8"></div>
+        <div class="setting"><div class="shead"><label for="photoSaturate">채도</label><output id="photoSaturateValue">5</output></div><input id="photoSaturate" type="range" min="-50" max="50" value="5"></div>
+        <div class="setting"><div class="shead">저장 형식</div><div class="segment" id="imageFormat"><button data-format="jpeg" class="active" type="button">JPG · 작은 용량</button><button data-format="png" type="button">PNG · 무손실</button></div></div>
+        <p class="settings-note">원본보다 화소 수를 늘리고 선명도를 보정합니다. AI로 없던 디테일을 생성하는 기능은 아닙니다.</p>
+      </section>
+      <section class="panel"><h2>3. 전후 비교 및 저장</h2><p class="hint">슬라이더로 원본과 보정본을 비교하세요.</p>
+        <div class="preview" id="photoPreview"><div class="emptyPreview" id="imageEmpty">사진을 불러오면<br>이곳에 미리보기가 표시됩니다.</div><div class="compare" id="compare" hidden><canvas id="beforeCanvas" class="before"></canvas><canvas id="afterCanvas" class="after"></canvas><div class="vline" id="splitLine"></div><span class="flag a">원본</span><span class="flag b">보정</span></div></div>
+        <div id="imageCompareFooter" class="previewFooter" hidden><label for="compareRange">전후 비교</label><input id="compareRange" class="compareSlider" type="range" min="0" max="100" value="50" aria-label="전후 비교 슬라이더"></div>
+        <div class="meta" id="imageOutInfo"></div>
+        <div class="actions"><button class="btn primary" id="imageProcess" disabled>화질 개선 시작</button><button class="btn secondary" id="imageShare" hidden>저장 · 공유하기</button><button class="btn" id="imageDownload" hidden>파일 다운로드</button></div>
+        <div class="progressTrack" id="photoProgress"><div class="progressBar" id="photoBar"></div></div><div class="status" id="photoStatus" role="status">사진을 선택하면 시작할 수 있습니다.</div>
+      </section>
+    </div>
+  </section>
 
-<main>
-
-<section class="panel">
-<h3>📁 영상 불러오기</h3>
-
-<input
- id="videoInput"
- type="file"
- accept="video/*">
-
-<p id="status">영상을 선택해 주세요.</p>
-</section>
-
-<div class="preview">
-<canvas id="canvas" width="640" height="360"></canvas>
-</div>
-
-<video
- id="video"
- playsinline
- preload="metadata">
-</video>
-
-<section class="panel">
-<h3>▶️ 재생</h3>
-
-<button id="playBtn">재생 / 일시정지</button>
-
-<p id="timeText">00:00 / 00:00</p>
-
-<input
- id="seek"
- type="range"
- min="0"
- max="100"
- value="0"
- step="0.01">
-</section>
-
-<section class="panel">
-<h3>✂️ 영상 자르기</h3>
-
-<label>시작 시간 (초)</label>
-<input id="start" type="number"
-min="0" value="0" step="0.1">
-
-<label>종료 시간 (초)</label>
-<input id="end" type="number"
-min="0" value="0" step="0.1">
-
-<br>
-<button id="trimBtn">구간 미리보기</button>
-</section>
-
-<section class="panel">
-<h3>⚡ 속도 조절</h3>
-
-<select id="speed">
-<option value="0.25">0.25배</option>
-<option value="0.5">0.5배</option>
-<option value="1" selected>1배</option>
-<option value="1.5">1.5배</option>
-<option value="2">2배</option>
-<option value="4">4배</option>
-</select>
-</section>
-
-<section class="panel">
-<h3>🎨 색 보정</h3>
-
-<label>밝기</label>
-<input id="brightness" type="range"
-min="50" max="150" value="100">
-
-<label>대비</label>
-<input id="contrast" type="range"
-min="50" max="150" value="100">
-
-<label>채도</label>
-<input id="saturation" type="range"
-min="0" max="200" value="100">
-
-<label>
-<input id="gray" type="checkbox">
-흑백 효과
-</label>
-
-<label>
-<input id="blur" type="checkbox">
-블러 효과
-</label>
-
-<button id="resetBtn">효과 초기화</button>
-</section>
-
-<section class="panel">
-<h3>🔄 회전</h3>
-
-<button id="rotateBtn">90도 회전</button>
-</section>
-
-<section class="panel">
-<h3>📝 자막</h3>
-
-<input
- id="caption"
- type="text"
- placeholder="자막을 입력하세요">
-
-<label>자막 크기</label>
-<input
- id="fontSize"
- type="range"
- min="16"
- max="80"
- value="36">
-</section>
-
-<section class="panel">
-<h3>🎵 배경음악</h3>
-
-<input
- id="audioInput"
- type="file"
- accept="audio/*">
-
-<audio id="audio" preload="metadata"></audio>
-
-<p class="small">
-배경음악은 미리보기에서 재생됩니다.
-현재 저장 파일에는 포함되지 않습니다.
-</p>
-</section>
-
-<section class="panel">
-<h3>💾 영상 저장</h3>
-
-<label>해상도</label>
-
-<select id="resolution">
-<option value="1280x720">720p</option>
-<option value="1920x1080" selected>1080p</option>
-<option value="2560x1440">2K</option>
-<option value="3840x2160">4K</option>
-<option value="7680x4320">8K (실험적)</option>
-<option value="15360x8640">16K (실험적)</option>
-</select>
-
-<br>
-
-<button id="exportBtn">영상 저장</button>
-<button id="cancelBtn" disabled>저장 취소</button>
-
-<label>저장 진행률</label>
-<progress id="progress" max="100" value="0"></progress>
-
-<p id="exportStatus" class="small">
-저장 대기 중
-</p>
-
-<a id="saveLink">완성된 영상 다운로드</a>
-
-<p class="small">
-8K·16K는 아이패드 브라우저에서 지원되지 않을 수 있습니다.
-</p>
-</section>
-
+  <section id="videoSection" hidden>
+    <section class="panel"><h2>1. 영상 불러오기</h2><p class="hint">짧은 영상부터 시험해 보세요. 영상은 재생하면서 실시간으로 개선·녹화됩니다.</p>
+      <label class="drop" id="videoDrop" for="videoFile"><span class="drop-icon">▷</span><strong>영상 선택하기</strong><span>MP4, MOV 등 기기 브라우저에서 재생되는 영상</span><input type="file" accept="video/*" id="videoFile"></label>
+      <div class="meta" id="videoMeta" hidden></div></section>
+    <div class="workgrid">
+      <section class="panel"><h2>2. 영상 설정</h2><p class="hint">30fps 이하로 다시 녹화하며, 기기 성능에 따라 4K 처리가 제한될 수 있습니다.</p>
+        <div class="segment" id="videoRes"><button class="active" data-res="1080" type="button">FULL HD<br>1080p</button><button data-res="4k" type="button">ULTRA HD<br>4K</button></div>
+        <div class="setting"><div class="shead"><label for="videoBright">밝기</label><output id="videoBrightValue">0</output></div><input id="videoBright" type="range" min="-40" max="40" value="0"></div>
+        <div class="setting"><div class="shead"><label for="videoContrast">대비</label><output id="videoContrastValue">8</output></div><input id="videoContrast" type="range" min="-30" max="50" value="8"></div>
+        <div class="setting"><div class="shead"><label for="videoSaturate">채도</label><output id="videoSaturateValue">5</output></div><input id="videoSaturate" type="range" min="-50" max="50" value="5"></div>
+        <label class="toggle"><input type="checkbox" id="videoAudio" checked> 원본 소리 포함 시도 (지원 기기)</label>
+        <p class="settings-note">영상은 브라우저가 지원하는 MP4 또는 WebM 형식으로 출력됩니다. 4K는 모든 기기에서 보장되지 않습니다.</p>
+      </section>
+      <section class="panel"><h2>3. 영상 개선 및 저장</h2><p class="hint">처리 중에는 화면을 켜 두고 다른 앱으로 이동하지 마세요.</p>
+        <div class="preview" id="videoPreview"><div class="emptyPreview" id="videoEmpty">영상을 불러오면<br>여기에서 확인할 수 있습니다.</div><video id="video" controls playsinline webkit-playsinline preload="metadata" hidden></video></div>
+        <div class="meta" id="videoOutInfo"></div>
+        <div class="actions"><button class="btn primary" id="videoProcess" disabled>영상 화질 개선 시작</button><button class="btn danger" id="videoStop" hidden>중단 · 현재까지 저장</button><button class="btn secondary" id="videoShare" hidden>저장 · 공유하기</button><button class="btn" id="videoDownload" hidden>파일 다운로드</button></div>
+        <div class="progressTrack" id="videoProgress"><div class="progressBar" id="videoBar"></div></div><div class="status" id="videoStatus" role="status">영상을 선택하면 시작할 수 있습니다.</div>
+      </section>
+    </div>
+  </section>
+  <section class="notice"><strong>이용 전 알아두세요.</strong> 1080p는 최대 1920×1080, 4K는 최대 3840×2160을 기준으로 하며 세로 사진·영상은 방향에 맞춰 적용합니다. 원본 비율을 지켜 실제 출력 크기가 달라질 수 있습니다. 4K 영상은 모바일의 메모리·녹화 코덱 제한으로 실패할 수 있습니다. 원본 파일은 기기에서만 읽고, 별도의 서버로 전송하지 않습니다. 저장 · 공유 창이 열리지 않으면 파일 다운로드를 이용하세요.</section>
+  <div class="footer">PIXEL UP · 단일 HTML 파일 · 기기 내 로컬 처리</div>
 </main>
-
 <script>
-"use strict";
-
-const $ = id => document.getElementById(id);
-
-const video = $("video");
-const audio = $("audio");
-const canvas = $("canvas");
-
-const ctx = canvas.getContext("2d", {
- alpha:false
-});
-
-let videoURL = null;
-let audioURL = null;
-let downloadURL = null;
-
-let rotation = 0;
-let raf = null;
-let trimPreview = false;
-
-let exporting = false;
-let cancelExport = false;
-let activeRecorder = null;
-
-function status(message){
- $("status").textContent = message;
+'use strict';
+const $=id=>document.getElementById(id);
+const state={image:null,imageUrl:null,videoUrl:null,videoFile:null,imgRes:'1080',vidRes:'1080',imgFormat:'jpeg',photoBlob:null,photoName:'',videoBlob:null,videoName:'',busyPhoto:false,busyVideo:false,recording:null,raf:0,audioContext:null,audioSource:null,audioDestination:null,audioGain:null,sourceVideoEl:null,photoPreviewTimer:0};
+function fmtBytes(n){if(!Number.isFinite(n))return '-';if(n<1024)return n+' B';if(n<1048576)return (n/1024).toFixed(1)+' KB';return (n/1048576).toFixed(1)+' MB'}
+function safeName(n){return (n||'media').replace(/\.[^.]*$/,'').replace(/[^a-zA-Z0-9가-힣_-]+/g,'_').slice(0,55)||'media'}
+function status(mode,message,type=''){const node=$(mode+'Status');node.textContent=message;node.className='status'+(type?' '+type:'')}
+function progress(mode,pct,show=true){$(mode+'Progress').style.display=show?'block':'none';$(mode==='photo'?'photoBar':'videoBar').style.width=Math.max(0,Math.min(100,pct))+'%'}
+function chips(parent,arr){parent.replaceChildren();arr.forEach(txt=>{let el=document.createElement('span');el.className='chip';el.textContent=txt;parent.appendChild(el)});parent.hidden=arr.length===0}
+function sizeFor(w,h,res){let portrait=h>w;let maxW=portrait?(res==='4k'?2160:1080):(res==='4k'?3840:1920);let maxH=portrait?(res==='4k'?3840:1920):(res==='4k'?2160:1080);let scale=Math.min(maxW/w,maxH/h);return {w:Math.max(2,Math.round(w*scale/2)*2),h:Math.max(2,Math.round(h*scale/2)*2)}}
+function filterFor(prefix){let b=Number($(prefix+'Bright').value),c=Number($(prefix+'Contrast').value),s=Number($(prefix+'Saturate').value);return `brightness(${Math.max(.15,1+b/100)}) contrast(${Math.max(.2,1+c/100)}) saturate(${Math.max(.1,1+s/100)})`}
+function toggleTabs(mode){if(state.busyVideo&&mode==='photo'){status('video','영상 처리 중에는 탭을 전환하지 마세요.','warn');return}const photo=mode==='photo';$('photoSection').hidden=!photo;$('videoSection').hidden=photo;$('photoTab').classList.toggle('active',photo);$('videoTab').classList.toggle('active',!photo);$('photoTab').setAttribute('aria-selected',String(photo));$('videoTab').setAttribute('aria-selected',String(!photo))}
+$('photoTab').addEventListener('click',()=>toggleTabs('photo'));$('videoTab').addEventListener('click',()=>toggleTabs('video'));
+function selectGroup(id,key,attr,after){$(id).querySelectorAll('button').forEach(btn=>btn.addEventListener('click',()=>{if(state.busyPhoto||state.busyVideo)return;$(id).querySelectorAll('button').forEach(b=>b.classList.toggle('active',b===btn));state[key]=btn.dataset[attr];after()}))}
+selectGroup('imageRes','imgRes','res',()=>{resetPhotoResult();updatePhotoTarget()});selectGroup('videoRes','vidRes','res',()=>{resetVideoResult();updateVideoTarget()});selectGroup('imageFormat','imgFormat','format',()=>resetPhotoResult());
+function wireSettings(prefix,after){['Bright','Contrast','Saturate',...(prefix==='photo'?['Sharp']:[])].forEach(name=>{let input=$(prefix+name);input.addEventListener('input',()=>{$(prefix+name+'Value').textContent=input.value;after()})})}
+wireSettings('photo',()=>{resetPhotoResult();queuePhotoPreview()});wireSettings('video',()=>{resetVideoResult();updateVideoTarget()});
+function setupDrop(dropId,inputId,fn){const drop=$(dropId),inp=$(inputId);inp.addEventListener('change',()=>{if(inp.files&&inp.files[0])fn(inp.files[0]);inp.value='' });['dragover','dragenter'].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.classList.add('drag')}));['dragleave','drop'].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.classList.remove('drag')}));drop.addEventListener('drop',ev=>{if(ev.dataTransfer?.files?.length)fn(ev.dataTransfer.files[0])})}
+setupDrop('imageDrop','imageFile',loadPhoto);setupDrop('videoDrop','videoFile',loadVideo);
+function resetPhotoResult(){if(state.busyPhoto)return;state.photoBlob=null;$('imageShare').hidden=true;$('imageDownload').hidden=true;progress('photo',0,false)}
+function resetVideoResult(){if(state.busyVideo)return;state.videoBlob=null;$('videoShare').hidden=true;$('videoDownload').hidden=true;progress('video',0,false)}
+function loadPhoto(file){if(state.busyPhoto||state.busyVideo)return;if(!file.type.startsWith('image/')&&!/\.(jpe?g|png|webp|heic|heif|gif|bmp|avif)$/i.test(file.name)){status('photo','사진 파일을 선택해 주세요.','warn');return}resetPhotoResult();if(state.imageUrl)URL.revokeObjectURL(state.imageUrl);let url=URL.createObjectURL(file);state.imageUrl=url;let img=new Image();img.onload=()=>{if(url!==state.imageUrl)return;state.image=img;chips($('imageMeta'),[file.name,`${img.naturalWidth} × ${img.naturalHeight}`,fmtBytes(file.size)]);$('imageProcess').disabled=false;$('imageEmpty').hidden=true;$('compare').hidden=false;$('imageCompareFooter').hidden=false;updatePhotoTarget();renderPhotoPreview();status('photo','사진을 불러왔습니다. 보정 설정 후 화질 개선 시작을 누르세요.','good')};img.onerror=()=>{if(url!==state.imageUrl)return;state.image=null;$('imageProcess').disabled=true;chips($('imageMeta'),[]);$('imageEmpty').hidden=false;$('compare').hidden=true;$('imageCompareFooter').hidden=true;status('photo','이 사진은 브라우저에서 열 수 없습니다. JPG 또는 PNG로 바꿔서 시도하세요.','warn')};img.src=url}
+function updatePhotoTarget(){if(!state.image)return;let d=sizeFor(state.image.naturalWidth,state.image.naturalHeight,state.imgRes);chips($('imageOutInfo'),[`저장 예정: ${d.w} × ${d.h}`,state.imgRes==='4k'?'4K 모드':'1080p 모드']);if(!state.photoBlob&&!state.busyPhoto)status('photo','화질 개선 시작을 눌러 보정된 파일을 만드세요.')}
+function drawImageSource(ctx,source,w,h,filter){ctx.save();ctx.clearRect(0,0,w,h);ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';ctx.filter=filter;ctx.drawImage(source,0,0,w,h);ctx.restore()}
+function sharpenStripe(canvas,y,rows,strength){const ctx=canvas.getContext('2d',{willReadFrequently:true});const w=canvas.width,h=canvas.height,top=Math.max(0,y-1),bottom=Math.min(h,y+rows+1);const input=ctx.getImageData(0,top,w,bottom-top);const data=input.data;const output=ctx.createImageData(w,Math.min(rows,h-y));let dest=output.data;const a=.36*(strength/100),stride=w*4;
+for(let row=0;row<output.height;row++){const originalRow=y+row,ry=originalRow-top;for(let x=0;x<w;x++){let i=ry*stride+x*4,j=row*stride+x*4;if(x===0||x===w-1||originalRow===0||originalRow===h-1){dest[j]=data[i];dest[j+1]=data[i+1];dest[j+2]=data[i+2];dest[j+3]=data[i+3];continue}for(let c=0;c<3;c++){const v=data[i+c]*(1+4*a)-a*(data[i+c-4]+data[i+c+4]+data[i+c-stride]+data[i+c+stride]);dest[j+c]=v<0?0:v>255?255:v}dest[j+3]=data[i+3]}}ctx.putImageData(output,0,y)}
+function renderPhotoPreview(){const img=state.image;if(!img||state.busyPhoto)return;let w=img.naturalWidth,h=img.naturalHeight;const scale=Math.min(1,1000/Math.max(w,h));w=Math.max(2,Math.round(w*scale));h=Math.max(2,Math.round(h*scale));const a=$('beforeCanvas'),b=$('afterCanvas');a.width=b.width=w;a.height=b.height=h;drawImageSource(a.getContext('2d'),img,w,h,'none');drawImageSource(b.getContext('2d'),img,w,h,filterFor('photo'));const sh=Number($('photoSharp').value);if(sh>0){for(let y=0;y<h;y+=128)sharpenStripe(b,y,128,sh)}let ratio=img.naturalWidth/img.naturalHeight;let visScale=Math.min(720/img.naturalWidth,425/img.naturalHeight);const compare=$('compare');compare.style.width=Math.max(1,Math.round(img.naturalWidth*visScale))+'px';compare.style.aspectRatio=`${img.naturalWidth} / ${img.naturalHeight}`;syncCompare()}
+function queuePhotoPreview(){clearTimeout(state.photoPreviewTimer);state.photoPreviewTimer=setTimeout(renderPhotoPreview,110)}
+function syncCompare(){let v=Number($('compareRange').value);$('afterCanvas').style.clipPath=`inset(0 0 0 ${v}%)`;$('splitLine').style.left=v+'%'}
+$('compareRange').addEventListener('input',syncCompare);
+function tick(){return new Promise(resolve=>setTimeout(resolve,0))}
+async function produceImage(){if(!state.image||state.busyPhoto)return;state.busyPhoto=true;state.photoBlob=null;$('imageProcess').disabled=true;resetPhotoResult();$('imageShare').hidden=true;$('imageDownload').hidden=true;let img=state.image,d=sizeFor(img.naturalWidth,img.naturalHeight,state.imgRes);progress('photo',5,true);status('photo','사진을 처리하고 있습니다. 이 화면을 유지해 주세요.');let canvas=null;try{canvas=document.createElement('canvas');canvas.width=d.w;canvas.height=d.h;const ctx=canvas.getContext('2d',{alpha:false,willReadFrequently:true});if(!ctx)throw Error('이 기기에서 이미지 처리 공간을 만들 수 없습니다.');
+// 단계적으로 확대하여 사진 가장자리의 계단 현상을 줄입니다.
+let source=img,currentW=img.naturalWidth,currentH=img.naturalHeight,steps=0;
+while(currentW*1.75<d.w&&currentH*1.75<d.h&&steps<5){const nw=Math.min(d.w,Math.round(currentW*1.7)),nh=Math.min(d.h,Math.round(currentH*1.7));const intermediate=document.createElement('canvas');intermediate.width=nw;intermediate.height=nh;drawImageSource(intermediate.getContext('2d'),source,nw,nh,'none');if(source!==img){source.width=0;source.height=0}source=intermediate;currentW=nw;currentH=nh;steps++;progress('photo',Math.min(28,8+steps*5));await tick()}
+// 밝기/대비/채도 조정 및 최종 크기 변환.
+drawImageSource(ctx,source,d.w,d.h,filterFor('photo'));if(source!==img){source.width=0;source.height=0}progress('photo',30);const sharp=Number($('photoSharp').value);if(sharp>0){const strip=64;for(let y=0;y<d.h;y+=strip){sharpenStripe(canvas,y,strip,sharp);progress('photo',30+Math.round(53*Math.min(1,(y+strip)/d.h)));await tick()}}
+progress('photo',86);status('photo','이미지를 파일로 저장하는 중입니다...');const type=state.imgFormat==='png'?'image/png':'image/jpeg';let blob=await new Promise((resolve,reject)=>{try{canvas.toBlob(b=>b?resolve(b):reject(Error('이 기기에서 이미지 파일을 만들지 못했습니다.')),type,.93)}catch(e){reject(e)}});state.photoBlob=blob;state.photoName=safeName($('imageMeta').firstChild?.textContent)+'_'+state.imgRes+'_enhanced.'+(state.imgFormat==='png'?'png':'jpg');$('imageShare').hidden=false;$('imageDownload').hidden=false;progress('photo',100);chips($('imageOutInfo'),[`${d.w} × ${d.h}`,fmtBytes(blob.size),state.imgFormat==='png'?'PNG':'JPG']);status('photo','완료되었습니다! 저장 · 공유하기 또는 파일 다운로드를 누르세요.','good')}
+catch(err){console.error(err);status('photo','사진 처리에 실패했습니다: '+(err?.message||'기기 메모리 부족일 수 있습니다.')+'\n4K였다면 1080p로 시도해 보세요.','warn');progress('photo',0,false)}finally{if(canvas){canvas.width=0;canvas.height=0}state.busyPhoto=false;$('imageProcess').disabled=!state.image}}
+$('imageProcess').addEventListener('click',produceImage);
+function saveDirect(blob,name){if(!blob)return;const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;a.style.display='none';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000)}
+async function shareBlob(blob,name,mode){if(!blob)return;const file=new File([blob],name,{type:blob.type||'application/octet-stream'});if(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){try{await navigator.share({files:[file],title:'PIXEL UP 결과물'});return}catch(e){if(e.name==='AbortError')return;status(mode,'공유 창을 열지 못했습니다. 파일 다운로드 버튼을 이용해 주세요.','warn');return}}saveDirect(blob,name);status(mode,'파일 다운로드를 시작했습니다. 저장되지 않았다면 브라우저 다운로드 목록을 확인해 주세요.','good')}
+$('imageShare').addEventListener('click',()=>shareBlob(state.photoBlob,state.photoName,'photo'));
+$('imageDownload').addEventListener('click',()=>saveDirect(state.photoBlob,state.photoName));
+const vid=$('video');
+function loadVideo(file){if(state.busyVideo||state.busyPhoto)return;if(!file.type.startsWith('video/')&&!/\.(mp4|mov|webm|m4v|avi|mkv)$/i.test(file.name)){status('video','영상 파일을 선택해 주세요.','warn');return}if(state.videoUrl)URL.revokeObjectURL(state.videoUrl);resetVideoResult();if(state.audioContext){try{state.audioContext.close()}catch(e){}state.audioContext=null;state.audioSource=null;state.audioDestination=null;state.audioGain=null}state.videoFile=file;state.videoUrl=URL.createObjectURL(file);vid.pause();vid.src=state.videoUrl;vid.load();$('videoProcess').disabled=true;vid.hidden=false;$('videoEmpty').hidden=true;chips($('videoMeta'),[file.name,fmtBytes(file.size)]);status('video','영상을 불러오는 중입니다...');}
+vid.addEventListener('loadedmetadata',()=>{if(!state.videoFile)return;if(!vid.videoWidth||!vid.videoHeight){status('video','영상의 크기를 읽을 수 없습니다.','warn');return}let f=state.videoFile;chips($('videoMeta'),[f.name,`${vid.videoWidth} × ${vid.videoHeight}`,`${Number.isFinite(vid.duration)?vid.duration.toFixed(1)+'초':'길이 확인 불가'}`,fmtBytes(f.size)]);$('videoProcess').disabled=false;updateVideoTarget();status('video','영상을 불러왔습니다. 처리 중에는 화면을 켜 두세요.','good')});
+vid.addEventListener('error',()=>{if(!state.videoFile)return;$('videoProcess').disabled=true;status('video','브라우저에서 이 영상 형식을 재생하지 못합니다. MP4(H.264) 영상으로 시도해 주세요.','warn')});
+function updateVideoTarget(){if(!vid.videoWidth||!vid.videoHeight)return;let d=sizeFor(vid.videoWidth,vid.videoHeight,state.vidRes);chips($('videoOutInfo'),[`출력 예정: ${d.w} × ${d.h}`,state.vidRes==='4k'?'4K 모드':'1080p 모드']);if(!state.videoBlob&&!state.busyVideo)status('video','영상 화질 개선 시작을 누르면 실제 재생 시간만큼 처리합니다.')}
+function chooseMime(){
+if(!('MediaRecorder' in window))return null;
+// iOS Safari는 H.264/AAC MP4, Android Chromium은 WebM 녹화를 우선합니다.
+const ios=/iPhone|iPad|iPod/i.test(navigator.userAgent)||(/Macintosh/i.test(navigator.userAgent)&&navigator.maxTouchPoints>1);
+const candidates=ios
+? ['video/mp4','video/mp4;codecs="avc1.640033"','video/mp4;codecs="avc1.42E01E"','video/webm']
+: state.vidRes==='4k'
+? ['video/mp4;codecs="avc1.640033"','video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm','video/mp4']
+: ['video/webm;codecs=vp8,opus','video/webm;codecs=vp9,opus','video/webm','video/mp4;codecs="avc1.42E01E"','video/mp4'];
+for(const m of candidates){try{if(MediaRecorder.isTypeSupported(m))return m}catch(e){}}
+return null;
 }
-
-function exportStatus(message){
- $("exportStatus").textContent = message;
-}
-
-function formatTime(t){
- if(!Number.isFinite(t)) return "00:00";
-
- const m = Math.floor(t/60);
- const s = Math.floor(t%60);
-
- return String(m).padStart(2,"0")+
- ":"+
- String(s).padStart(2,"0");
-}
-
-function wait(ms){
- return new Promise(resolve=>setTimeout(resolve,ms));
-}
-
-function getRange(){
- const duration = video.duration || 0;
-
- const start = Math.max(
- 0,
- Math.min(
-  Number($("start").value)||0,
-  duration
- ));
-
- const end = Math.max(
- start,
- Math.min(
-  Number($("end").value)||duration,
-  duration
- ));
-
- return {start,end};
-}
-
-function clearDownload(){
- $("saveLink").style.display="none";
- $("saveLink").removeAttribute("href");
-
- if(downloadURL){
-  URL.revokeObjectURL(downloadURL);
-  downloadURL=null;
- }
-}
-
-// 영상 불러오기
-$("videoInput").addEventListener("change",e=>{
- const file=e.target.files[0];
- if(!file) return;
-
- stopRender();
- video.pause();
- audio.pause();
-
- clearDownload();
-
- if(videoURL){
-  video.removeAttribute("src");
-  video.load();
-  URL.revokeObjectURL(videoURL);
- }
-
- videoURL=URL.createObjectURL(file);
-
- status(
-  "영상 정보를 불러오는 중...\n"+
-  "파일: "+file.name+"\n"+
-  "용량: "+(file.size/1024/1024).toFixed(2)+"MB"
- );
-
- video.src=videoURL;
- video.load();
-});
-
-video.addEventListener("loadedmetadata",()=>{
- const duration=video.duration;
-
- $("start").value=0;
- $("end").value=duration.toFixed(2);
-
- $("seek").max=duration;
-
- const scale=Math.min(
-  1,
-  960/video.videoWidth
- );
-
- canvas.width=Math.max(
-  1,
-  Math.round(video.videoWidth*scale)
- );
-
- canvas.height=Math.max(
-  1,
-  Math.round(video.videoHeight*scale)
- );
-
- status("영상 정보 불러오기 완료");
- drawFrame();
-});
-
-video.addEventListener("loadeddata",()=>{
- drawFrame();
- status("영상 미리보기 준비 완료");
-});
-
-video.addEventListener("error",()=>{
- const error=video.error;
- if(!error) return;
-
- const messages={
-  1:"영상 불러오기가 취소되었습니다.",
-  2:"영상 데이터를 읽는 중 오류가 발생했습니다.",
-  3:"영상 디코딩에 실패했습니다.",
-  4:"지원하지 않는 영상 형식 또는 코덱입니다."
- };
-
- status(
-  "오류 "+error.code+": "+
-  (messages[error.code]||"알 수 없는 오류")
- );
-});
-
-// 영상 그리기
-function drawTo(target,w,h){
- if(video.readyState<2) return;
-
- target.save();
-
- target.fillStyle="black";
- target.fillRect(0,0,w,h);
-
- const brightness=$("brightness").value;
- const contrast=$("contrast").value;
- const saturation=$("saturation").value;
-
- let filter=
- `brightness(${brightness}%) `+
- `contrast(${contrast}%) `+
- `saturate(${saturation}%)`;
-
- if($("gray").checked){
-  filter+=" grayscale(100%)";
- }
-
- if($("blur").checked){
-  filter+=" blur(3px)";
- }
-
- target.filter=filter;
-
- target.translate(w/2,h/2);
- target.rotate(rotation*Math.PI/180);
-
- const swapped=rotation%180!==0;
-
- const availableW=swapped?h:w;
- const availableH=swapped?w:h;
-
- const scale=Math.min(
-  availableW/video.videoWidth,
-  availableH/video.videoHeight
- );
-
- const vw=video.videoWidth*scale;
- const vh=video.videoHeight*scale;
-
- target.drawImage(
-  video,
-  -vw/2,
-  -vh/2,
-  vw,
-  vh
- );
-
- target.restore();
-
- const caption=$("caption").value;
-
- if(caption){
-  target.save();
-
-  const fontSize=Math.max(
-   12,
-   Number($("fontSize").value)*w/960
-  );
-
-  target.font=`bold ${fontSize}px Arial`;
-  target.textAlign="center";
-  target.textBaseline="middle";
-
-  target.strokeStyle="black";
-  target.lineWidth=Math.max(2,fontSize/9);
-  target.fillStyle="white";
-
-  const x=w/2;
-  const y=h-fontSize*1.5;
-
-  target.strokeText(caption,x,y);
-  target.fillText(caption,x,y);
-
-  target.restore();
- }
-}
-
-function drawFrame(){
- if(canvas.width && canvas.height){
-  drawTo(ctx,canvas.width,canvas.height);
- }
-}
-
-function stopRender(){
- if(raf!==null){
-  cancelAnimationFrame(raf);
-  raf=null;
- }
-}
-
-function renderLoop(){
- drawFrame();
-
- if(!video.paused && !video.ended){
-  raf=requestAnimationFrame(renderLoop);
- }else{
-  raf=null;
- }
-}
-
-video.addEventListener("play",()=>{
- stopRender();
- renderLoop();
-});
-
-video.addEventListener("pause",()=>{
- stopRender();
- drawFrame();
-});
-
-video.addEventListener("seeked",drawFrame);
-
-video.addEventListener("timeupdate",()=>{
- $("seek").value=video.currentTime;
-
- $("timeText").textContent=
- formatTime(video.currentTime)+
- " / "+
- formatTime(video.duration);
-
- if(trimPreview){
-  const {end}=getRange();
-
-  if(video.currentTime>=end){
-   video.pause();
-   audio.pause();
-   trimPreview=false;
-  }
- }
-});
-
-// 재생
-$("playBtn").onclick=async()=>{
- if(!videoURL) return;
-
- try{
-  if(video.paused){
-   await video.play();
-
-   if(audioURL){
-    audio.currentTime=0;
-    audio.play().catch(()=>{});
-   }
-  }else{
-   video.pause();
-   audio.pause();
-  }
- }catch(error){
-  status("재생 실패: "+error.message);
- }
-};
-
-// 탐색
-$("seek").addEventListener("input",()=>{
- if(!videoURL || exporting) return;
-
- video.currentTime=Number($("seek").value);
-});
-
-// 구간 미리보기
-$("trimBtn").onclick=async()=>{
- if(!videoURL) return;
-
- const {start,end}=getRange();
-
- if(end<=start){
-  alert("종료 시간을 확인하세요.");
-  return;
- }
-
- try{
-  trimPreview=true;
-  video.currentTime=start;
-  await video.play();
- }catch(error){
-  status("구간 재생 실패: "+error.message);
- }
-};
-
-// 속도
-$("speed").onchange=()=>{
- video.playbackRate=Number($("speed").value);
-};
-
-// 필터
-[
- "brightness",
- "contrast",
- "saturation",
- "gray",
- "blur",
- "caption",
- "fontSize"
-].forEach(id=>{
- $(id).addEventListener("input",()=>{
-  if(video.paused) drawFrame();
- });
-});
-
-// 초기화
-$("resetBtn").onclick=()=>{
- $("brightness").value=100;
- $("contrast").value=100;
- $("saturation").value=100;
- $("gray").checked=false;
- $("blur").checked=false;
- drawFrame();
-};
-
-// 회전
-$("rotateBtn").onclick=()=>{
- rotation=(rotation+90)%360;
- drawFrame();
-};
-
-// 음악
-$("audioInput").onchange=e=>{
- const file=e.target.files[0];
- if(!file) return;
-
- if(audioURL){
-  audio.pause();
-  audio.removeAttribute("src");
-  audio.load();
-  URL.revokeObjectURL(audioURL);
- }
-
- audioURL=URL.createObjectURL(file);
- audio.src=audioURL;
-
- status("배경음악 불러오기 완료");
-};
-
-// 저장 취소
-$("cancelBtn").onclick=()=>{
- if(!exporting) return;
-
- cancelExport=true;
- exportStatus("저장 취소 중...");
-
- if(activeRecorder &&
-    activeRecorder.state!=="inactive"){
-  activeRecorder.stop();
- }
-};
-
-// 녹화 형식 선택
-function getSupportedMime(){
- if(!window.MediaRecorder) return null;
-
- const types=[
-  "video/mp4;codecs=avc1.42E01E",
-  "video/mp4",
-  "video/webm;codecs=vp9",
-  "video/webm;codecs=vp8",
-  "video/webm"
- ];
-
- for(const type of types){
-  if(MediaRecorder.isTypeSupported(type)){
-   return type;
-  }
- }
-
- return null;
-}
-
-// 저장
-$("exportBtn").onclick=async()=>{
- if(exporting) return;
-
- if(!videoURL){
-  alert("영상을 먼저 불러오세요.");
-  return;
- }
-
- if(!canvas.captureStream ||
-    !window.MediaRecorder){
-  exportStatus(
-   "이 브라우저에서는 영상 저장 기능을 지원하지 않습니다."
-  );
-  return;
- }
-
- const mime=getSupportedMime();
-
- if(!mime){
-  exportStatus(
-   "지원되는 영상 인코딩 형식이 없습니다."
-  );
-  return;
- }
-
- const [w,h]=$("resolution").value
- .split("x").map(Number);
-
- const pixels=w*h;
-
- if(pixels>3840*2160){
-  const ok=confirm(
-   "8K/16K는 아이패드에서 저장 실패 또는 메모리 부족이 발생할 수 있습니다. 계속할까요?"
-  );
-
-  if(!ok) return;
- }
-
- const {start,end}=getRange();
-
- if(end<=start){
-  alert("저장 구간을 확인하세요.");
-  return;
- }
-
- exporting=true;
- cancelExport=false;
-
- $("exportBtn").disabled=true;
- $("cancelBtn").disabled=false;
- $("progress").value=0;
-
- clearDownload();
-
- let exportCanvas=null;
- let stream=null;
- let recorder=null;
- let exportRaf=null;
- let chunks=[];
- let stopped=false;
-
- const cleanup=()=>{
-  if(exportRaf!==null){
-   cancelAnimationFrame(exportRaf);
-   exportRaf=null;
-  }
-
-  if(stream){
-   stream.getTracks().forEach(track=>track.stop());
-  }
-
-  video.pause();
-
-  exporting=false;
-  activeRecorder=null;
-
-  $("exportBtn").disabled=false;
-  $("cancelBtn").disabled=true;
- };
-
- try{
-  video.pause();
-  audio.pause();
-
-  exportStatus("저장 준비 중...");
-
-  exportCanvas=document.createElement("canvas");
-  exportCanvas.width=w;
-  exportCanvas.height=h;
-
-  const exportCtx=exportCanvas.getContext("2d",{
-   alpha:false
-  });
-
-  if(!exportCtx){
-   throw new Error("저장용 화면을 생성할 수 없습니다.");
-  }
-
-  // 저장 위치로 이동
-  video.currentTime=start;
-
-  await new Promise((resolve,reject)=>{
-   if(Math.abs(video.currentTime-start)<0.05){
-    resolve();
-    return;
-   }
-
-   const timer=setTimeout(()=>{
-    reject(new Error("영상 탐색 시간 초과"));
-   },10000);
-
-   video.addEventListener("seeked",()=>{
-    clearTimeout(timer);
-    resolve();
-   },{once:true});
-  });
-
-  drawTo(exportCtx,w,h);
-
-  // 초당 24프레임
-  stream=exportCanvas.captureStream(24);
-
-  recorder=new MediaRecorder(stream,{
-   mimeType:mime,
-   videoBitsPerSecond:
-    pixels>1920*1080?12000000:6000000
-  });
-
-  activeRecorder=recorder;
-
-  const finished=new Promise((resolve,reject)=>{
-
-   recorder.ondataavailable=e=>{
-    if(e.data && e.data.size>0){
-     chunks.push(e.data);
-    }
-   };
-
-   recorder.onerror=e=>{
-    reject(new Error("영상 인코딩 오류"));
-   };
-
-   recorder.onstop=()=>{
-    resolve();
-   };
-  });
-
-  function exportLoop(){
-   if(cancelExport) return;
-
-   drawTo(exportCtx,w,h);
-
-   const current=video.currentTime;
-
-   const percent=Math.min(
-    100,
-    Math.max(
-     0,
-     (current-start)/(end-start)*100
-    )
-   );
-
-   $("progress").value=percent;
-
-   exportStatus(
-    "영상 저장 중... "+percent.toFixed(1)+"%"
-   );
-
-   if(current>=end || video.ended){
-    stopped=true;
-    video.pause();
-
-    if(recorder.state!=="inactive"){
-     recorder.stop();
-    }
-
-    return;
-   }
-
-   exportRaf=requestAnimationFrame(exportLoop);
-  }
-
-  recorder.start(1000);
-
-  await video.play();
-
-  exportLoop();
-
-  await finished;
-
-  if(cancelExport){
-   exportStatus("영상 저장이 취소되었습니다.");
-   cleanup();
-   return;
-  }
-
-  // 빈 파일 방지
-  const totalSize=chunks.reduce(
-   (sum,chunk)=>sum+chunk.size,
-   0
-  );
-
-  if(totalSize===0){
-   throw new Error(
-    "녹화 데이터가 0KB입니다. Safari 인코딩이 지원되지 않을 수 있습니다."
-   );
-  }
-
-  const actualType=recorder.mimeType || mime;
-
-  const blob=new Blob(chunks,{
-   type:actualType
-  });
-
-  if(blob.size===0){
-   throw new Error("빈 영상 파일이 생성되었습니다.");
-  }
-
-  const extension=
-   actualType.includes("mp4")?"mp4":"webm";
-
-  downloadURL=URL.createObjectURL(blob);
-
-  const link=$("saveLink");
-
-  link.href=downloadURL;
-  link.download="MiniCut_video."+extension;
-  link.textContent=
-   "완성된 영상 다운로드 ("+
-   (blob.size/1024/1024).toFixed(2)+
-   "MB)";
-
-  link.style.display="block";
-
-  $("progress").value=100;
-
-  exportStatus(
-   "영상 저장 완료!\n"+
-   "파일 크기: "+
-   (blob.size/1024/1024).toFixed(2)+
-   "MB\n"+
-   "아래 다운로드 버튼을 눌러 저장하세요."
-  );
-
-  cleanup();
-
- }catch(error){
-  console.error(error);
-
-  exportStatus(
-   "저장 실패: "+error.message
-  );
-
-  if(recorder &&
-     recorder.state!=="inactive"){
-   try{
-    recorder.stop();
-   }catch(e){}
-  }
-
-  cleanup();
- }
-};
-
-window.addEventListener("pagehide",()=>{
- stopRender();
-
- if(videoURL){
-  URL.revokeObjectURL(videoURL);
- }
-
- if(audioURL){
-  URL.revokeObjectURL(audioURL);
- }
-
- if(downloadURL){
-  URL.revokeObjectURL(downloadURL);
- }
-});
+function stopVideo(){if(!state.recording)return;const r=state.recording;if(r.stopping)return;r.stopping=true;vid.pause();cancelAnimationFrame(state.raf);try{if(r.recorder.state!=='inactive')r.recorder.stop()}catch(e){console.error(e)}$('videoStop').disabled=true;status('video','녹화를 종료하고 영상 파일을 만드는 중입니다...')}
+$('videoStop').addEventListener('click',stopVideo);
+function setupAudio(){if(!$('videoAudio').checked)return null;try{const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return null;if(!state.audioContext){state.audioContext=new AC();state.audioSource=state.audioContext.createMediaElementSource(vid);state.audioDestination=state.audioContext.createMediaStreamDestination();state.audioGain=state.audioContext.createGain();state.audioSource.connect(state.audioDestination);state.audioSource.connect(state.audioGain);state.audioGain.connect(state.audioContext.destination)}state.audioGain.gain.value=0;state.audioContext.resume().catch(e=>console.warn("Audio context resume failed",e));return state.audioDestination.stream.getAudioTracks()}catch(e){console.warn('Audio capture not available',e);return null}}
+async function produceVideo(){if(!state.videoFile||state.busyVideo||!vid.videoWidth)return;const mime=chooseMime();if(!HTMLCanvasElement.prototype.captureStream||!mime){status('video','이 브라우저에서는 영상 변환에 필요한 녹화 기능을 지원하지 않습니다. 최신 Safari 또는 Chrome에서 열어 보세요.','warn');return}const d=sizeFor(vid.videoWidth,vid.videoHeight,state.vidRes);state.busyVideo=true;state.videoBlob=null;$('videoProcess').disabled=true;$('videoShare').hidden=true;$('videoDownload').hidden=true;$('videoStop').hidden=false;$('videoStop').disabled=false;let canvas=document.createElement('canvas');canvas.width=d.w;canvas.height=d.h;let ctx=canvas.getContext('2d',{alpha:false});if(!ctx){state.busyVideo=false;$('videoStop').hidden=true;$('videoProcess').disabled=false;status('video','영상 처리 공간을 만들 수 없습니다. 1080p를 선택해 보세요.','warn');return}
+let stream=null,rec=null,frame=0,ended=()=>stopVideo();const chunks=[];let audioTracks=null;try{
+const vf=filterFor('video');const paint=()=>{if(!state.busyVideo||!state.recording||state.recording.stopping)return;try{if(vid.readyState>=2&&!vid.seeking){ctx.clearRect(0,0,d.w,d.h);ctx.save();ctx.filter=vf;ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';ctx.drawImage(vid,0,0,d.w,d.h);ctx.restore()}if(Number.isFinite(vid.duration)&&vid.duration>0){progress('video',Math.min(98,Math.floor(98*vid.currentTime/vid.duration)))}}catch(e){console.warn('Frame error',e)}state.raf=requestAnimationFrame(paint)};
+// 오디오 컨텍스트는 버튼 클릭 이벤트 안에서 바로 생성/재개합니다.
+audioTracks=setupAudio();stream=canvas.captureStream(30);
+if(audioTracks&&audioTracks.length)audioTracks.forEach(track=>{try{stream.addTrack(track)}catch(e){console.warn(e)}});
+const opts={mimeType:mime,videoBitsPerSecond:state.vidRes==='4k'?18000000:7000000,audioBitsPerSecond:128000};try{rec=new MediaRecorder(stream,opts)}catch(e){rec=new MediaRecorder(stream,{mimeType:mime})}
+rec.ondataavailable=e=>{if(e.data&&e.data.size)chunks.push(e.data)};
+rec.onerror=e=>{console.error('Recorder',e);status('video','영상 녹화 오류가 발생했습니다. 1080p 또는 더 짧은 영상으로 시도하세요.','warn');stopVideo()};
+rec.onstop=()=>{try{const actual=rec.mimeType||mime;const extension=actual.includes('mp4')?'mp4':'webm';const blob=new Blob(chunks,{type:actual.split(';')[0]});if(!blob.size)throw Error('녹화된 데이터가 없습니다.');state.videoBlob=blob;state.videoName=safeName(state.videoFile.name)+'_'+state.vidRes+'_enhanced.'+extension;$('videoShare').hidden=false;$('videoDownload').hidden=false;chips($('videoOutInfo'),[`${d.w} × ${d.h}`,fmtBytes(blob.size),extension.toUpperCase()]);progress('video',100);status('video','영상 처리가 완료되었습니다. 저장 · 공유하기 또는 파일 다운로드를 누르세요.'+(audioTracks?.length?'':' (이 기기에서는 소리가 포함되지 않았을 수 있습니다.)'),'good')}catch(e){progress('video',0,false);status('video','영상 파일 생성 실패: '+e.message,'warn')}finally{videoCleanup(stream,canvas,ended)}};
+state.recording={recorder:rec,stopping:false,wasMuted:vid.muted};vid.addEventListener('ended',ended);vid.controls=false;if(!$('videoAudio').checked)vid.muted=true;try{vid.currentTime=0}catch(e){}const playPromise=vid.play();rec.start(1500);status('video',`영상 처리 중 · ${d.w} × ${d.h}\n영상이 끝날 때까지 화면을 켜 두세요. ${mime.includes('mp4')?'MP4':'WebM'} 형식으로 저장됩니다.`);progress('video',0,true);paint();await playPromise;
+}catch(err){console.error('Video process',err);status('video','영상 변환을 시작하지 못했습니다: '+(err?.message||'알 수 없는 오류')+'\n브라우저 지원이나 기기 메모리를 확인하고 1080p로 시도해 보세요.','warn');if(rec&&rec.state!=='inactive'){try{rec.onstop=null;rec.stop()}catch(e){}}videoCleanup(stream,canvas,ended)}}
+function videoCleanup(stream,canvas,ended){cancelAnimationFrame(state.raf);vid.removeEventListener('ended',ended);if(stream)stream.getTracks().forEach(t=>{try{t.stop()}catch(e){}});if(state.audioGain)state.audioGain.gain.value=1;if(state.recording)vid.muted=state.recording.wasMuted;vid.controls=true;vid.pause();if(canvas){canvas.width=0;canvas.height=0}state.recording=null;state.busyVideo=false;$('videoStop').hidden=true;$('videoProcess').disabled=!state.videoFile||!vid.videoWidth}
+$('videoProcess').addEventListener('click',produceVideo);
+$('videoShare').addEventListener('click',()=>shareBlob(state.videoBlob,state.videoName,'video'));
+$('videoDownload').addEventListener('click',()=>saveDirect(state.videoBlob,state.videoName));
+window.addEventListener('pagehide',()=>{if(state.busyVideo)stopVideo()});
 </script>
-
 </body>
 </html>
