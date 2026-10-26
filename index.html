@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport"
 content="width=device-width,initial-scale=1">
-<title>MiniCut 영상 편집기</title>
+<title>MiniCut Pro</title>
 
 <style>
 *{box-sizing:border-box}
@@ -18,9 +18,9 @@ body{
 
 header{
  background:#202020;
- padding:15px;
+ padding:18px;
  text-align:center;
- font-size:22px;
+ font-size:23px;
  font-weight:bold;
 }
 
@@ -30,27 +30,10 @@ main{
  padding:15px;
 }
 
-.preview{
- background:black;
- border-radius:12px;
- overflow:hidden;
- margin-bottom:15px;
-}
-
-canvas{
- width:100%;
- display:block;
- background:black;
-}
-
-video{
- display:none;
-}
-
 .panel{
  background:#222;
- padding:15px;
- margin-bottom:12px;
+ padding:16px;
+ margin-bottom:14px;
  border-radius:12px;
 }
 
@@ -58,21 +41,36 @@ video{
  margin-top:0;
 }
 
-button,select,input{
- margin:5px 0;
+.preview{
+ background:#000;
+ border-radius:12px;
+ overflow:hidden;
+ margin-bottom:15px;
+}
+
+canvas{
+ display:block;
+ width:100%;
+ background:#000;
+}
+
+video{
+ display:none;
 }
 
 button{
  background:#00c896;
  border:0;
- padding:12px;
  border-radius:8px;
+ padding:12px 16px;
+ color:#061c15;
  font-weight:bold;
+ margin:5px 3px;
  cursor:pointer;
 }
 
 button:disabled{
- opacity:.5;
+ opacity:.45;
 }
 
 input[type=range]{
@@ -83,59 +81,68 @@ input[type=file]{
  max-width:100%;
 }
 
-label{
- display:block;
- margin-top:10px;
-}
-
-select{
- padding:8px;
- border-radius:6px;
- background:#333;
- color:white;
-}
-
 input[type=text],
-input[type=number]{
- padding:8px;
+input[type=number],
+select{
  background:#333;
  color:white;
  border:1px solid #555;
  border-radius:6px;
+ padding:9px;
  max-width:100%;
+}
+
+label{
+ display:block;
+ margin-top:12px;
+ margin-bottom:5px;
 }
 
 #status{
  color:#00e5aa;
  white-space:pre-wrap;
+ overflow-wrap:anywhere;
+}
+
+#progress{
+ width:100%;
+ height:18px;
 }
 
 .small{
  color:#aaa;
  font-size:13px;
+ line-height:1.6;
+}
+
+#saveLink{
+ display:none;
+ color:#00e5aa;
+ font-weight:bold;
+ margin-top:12px;
 }
 </style>
 </head>
 
 <body>
 
-<header>🎬 MiniCut 영상 편집기</header>
+<header>🎬 MiniCut Pro</header>
 
 <main>
 
-<div class="panel">
+<section class="panel">
 <h3>📁 영상 불러오기</h3>
 
 <input
- type="file"
  id="videoInput"
+ type="file"
  accept="video/*">
 
 <p id="status">영상을 선택해 주세요.</p>
-</div>
+</section>
 
 <div class="preview">
-<canvas id="canvas"></canvas>
+<canvas id="canvas" width="640" height="360"></canvas>
 </div>
 
 <video
@@ -144,34 +151,38 @@ input[type=number]{
  preload="metadata">
 </video>
 
-<div class="panel">
-<h3>▶ 재생</h3>
+<section class="panel">
+<h3>▶️ 재생</h3>
 
 <button id="playBtn">재생 / 일시정지</button>
 
 <p id="timeText">00:00 / 00:00</p>
 
 <input
- type="range"
  id="seek"
+ type="range"
  min="0"
  max="100"
- value="0">
-</div>
+ value="0"
+ step="0.01">
+</section>
 
-<div class="panel">
+<section class="panel">
 <h3>✂️ 영상 자르기</h3>
 
 <label>시작 시간 (초)</label>
-<input type="number" id="start" value="0" min="0">
+<input id="start" type="number"
+min="0" value="0" step="0.1">
 
 <label>종료 시간 (초)</label>
-<input type="number" id="end" value="0" min="0">
+<input id="end" type="number"
+min="0" value="0" step="0.1">
 
+<br>
 <button id="trimBtn">구간 미리보기</button>
-</div>
+</section>
 
-<div class="panel">
+<section class="panel">
 <h3>⚡ 속도 조절</h3>
 
 <select id="speed">
@@ -182,74 +193,79 @@ input[type=number]{
 <option value="2">2배</option>
 <option value="4">4배</option>
 </select>
-</div>
+</section>
 
-<div class="panel">
+<section class="panel">
 <h3>🎨 색 보정</h3>
 
 <label>밝기</label>
-<input type="range" id="brightness"
+<input id="brightness" type="range"
 min="50" max="150" value="100">
 
 <label>대비</label>
-<input type="range" id="contrast"
+<input id="contrast" type="range"
 min="50" max="150" value="100">
 
 <label>채도</label>
-<input type="range" id="saturation"
+<input id="saturation" type="range"
 min="0" max="200" value="100">
 
 <label>
-<input type="checkbox" id="gray">
+<input id="gray" type="checkbox">
 흑백 효과
 </label>
 
 <label>
-<input type="checkbox" id="blur">
+<input id="blur" type="checkbox">
 블러 효과
 </label>
 
 <button id="resetBtn">효과 초기화</button>
-</div>
+</section>
 
-<div class="panel">
-<h3>🔄 영상 회전</h3>
+<section class="panel">
+<h3>🔄 회전</h3>
 
 <button id="rotateBtn">90도 회전</button>
-</div>
+</section>
 
-<div class="panel">
+<section class="panel">
 <h3>📝 자막</h3>
 
 <input
- type="text"
  id="caption"
+ type="text"
  placeholder="자막을 입력하세요">
 
 <label>자막 크기</label>
 <input
- type="range"
  id="fontSize"
+ type="range"
  min="16"
  max="80"
  value="36">
-</div>
+</section>
 
-<div class="panel">
+<section class="panel">
 <h3>🎵 배경음악</h3>
 
 <input
- type="file"
  id="audioInput"
+ type="file"
  accept="audio/*">
 
 <audio id="audio" preload="metadata"></audio>
-</div>
 
-<div class="panel">
+<p class="small">
+배경음악은 미리보기에서 재생됩니다.
+현재 저장 파일에는 포함되지 않습니다.
+</p>
+</section>
+
+<section class="panel">
 <h3>💾 영상 저장</h3>
 
-<label>저장 해상도</label>
+<label>해상도</label>
 
 <select id="resolution">
 <option value="1280x720">720p</option>
@@ -263,43 +279,70 @@ min="0" max="200" value="100">
 <br>
 
 <button id="exportBtn">영상 저장</button>
+<button id="cancelBtn" disabled>저장 취소</button>
+
+<label>저장 진행률</label>
+<progress id="progress" max="100" value="0"></progress>
+
+<p id="exportStatus" class="small">
+저장 대기 중
+</p>
+
+<a id="saveLink">완성된 영상 다운로드</a>
 
 <p class="small">
-고해상도 저장은 기기 성능에 따라 실패할 수 있습니다.
+8K·16K는 아이패드 브라우저에서 지원되지 않을 수 있습니다.
 </p>
-</div>
+</section>
 
 </main>
 
 <script>
-const video = document.getElementById("video");
-const canvas = document.getElementById("canvas");
+"use strict";
+
+const $ = id => document.getElementById(id);
+
+const video = $("video");
+const audio = $("audio");
+const canvas = $("canvas");
+
 const ctx = canvas.getContext("2d", {
  alpha:false
 });
 
-const audio = document.getElementById("audio");
-const statusText = document.getElementById("status");
-
 let videoURL = null;
 let audioURL = null;
+let downloadURL = null;
+
 let rotation = 0;
 let raf = null;
-let exporting = false;
 let trimPreview = false;
 
-const $ = id => document.getElementById(id);
+let exporting = false;
+let cancelExport = false;
+let activeRecorder = null;
 
 function status(message){
- statusText.textContent = message;
+ $("status").textContent = message;
+}
+
+function exportStatus(message){
+ $("exportStatus").textContent = message;
 }
 
 function formatTime(t){
  if(!Number.isFinite(t)) return "00:00";
+
  const m = Math.floor(t/60);
  const s = Math.floor(t%60);
- return String(m).padStart(2,"0")
- + ":" + String(s).padStart(2,"0");
+
+ return String(m).padStart(2,"0")+
+ ":"+
+ String(s).padStart(2,"0");
+}
+
+function wait(ms){
+ return new Promise(resolve=>setTimeout(resolve,ms));
 }
 
 function getRange(){
@@ -307,25 +350,41 @@ function getRange(){
 
  const start = Math.max(
  0,
- Math.min(Number($("start").value)||0,duration)
- );
+ Math.min(
+  Number($("start").value)||0,
+  duration
+ ));
 
  const end = Math.max(
  start,
- Math.min(Number($("end").value)||duration,duration)
- );
+ Math.min(
+  Number($("end").value)||duration,
+  duration
+ ));
 
  return {start,end};
 }
 
+function clearDownload(){
+ $("saveLink").style.display="none";
+ $("saveLink").removeAttribute("href");
+
+ if(downloadURL){
+  URL.revokeObjectURL(downloadURL);
+  downloadURL=null;
+ }
+}
+
 // 영상 불러오기
 $("videoInput").addEventListener("change",e=>{
- const file = e.target.files[0];
+ const file=e.target.files[0];
  if(!file) return;
 
  stopRender();
  video.pause();
  audio.pause();
+
+ clearDownload();
 
  if(videoURL){
   video.removeAttribute("src");
@@ -333,42 +392,42 @@ $("videoInput").addEventListener("change",e=>{
   URL.revokeObjectURL(videoURL);
  }
 
- videoURL = URL.createObjectURL(file);
+ videoURL=URL.createObjectURL(file);
 
  status(
   "영상 정보를 불러오는 중...\n"+
   "파일: "+file.name+"\n"+
-  "형식: "+(file.type||"알 수 없음")
+  "용량: "+(file.size/1024/1024).toFixed(2)+"MB"
  );
 
- video.src = videoURL;
+ video.src=videoURL;
  video.load();
 });
 
 video.addEventListener("loadedmetadata",()=>{
- $("start").value = 0;
- $("end").value = video.duration.toFixed(2);
+ const duration=video.duration;
 
- const maxPreviewWidth = 960;
- const scale = Math.min(
+ $("start").value=0;
+ $("end").value=duration.toFixed(2);
+
+ $("seek").max=duration;
+
+ const scale=Math.min(
   1,
-  maxPreviewWidth/video.videoWidth
+  960/video.videoWidth
  );
 
- canvas.width = Math.max(
+ canvas.width=Math.max(
   1,
   Math.round(video.videoWidth*scale)
  );
 
- canvas.height = Math.max(
+ canvas.height=Math.max(
   1,
   Math.round(video.videoHeight*scale)
  );
 
- $("seek").max = video.duration;
-
- status("영상 정보 로딩 완료");
-
+ status("영상 정보 불러오기 완료");
  drawFrame();
 });
 
@@ -377,63 +436,37 @@ video.addEventListener("loadeddata",()=>{
  status("영상 미리보기 준비 완료");
 });
 
-// 오류 원인 표시 기능
 video.addEventListener("error",()=>{
- const error = video.error;
+ const error=video.error;
+ if(!error) return;
 
- if(!error){
-  status("영상 오류가 발생했습니다.");
-  return;
- }
+ const messages={
+  1:"영상 불러오기가 취소되었습니다.",
+  2:"영상 데이터를 읽는 중 오류가 발생했습니다.",
+  3:"영상 디코딩에 실패했습니다.",
+  4:"지원하지 않는 영상 형식 또는 코덱입니다."
+ };
 
- switch(error.code){
-  case 1:
-   status(
-    "오류 1: 영상 불러오기가 취소되었습니다."
-   );
-   break;
-
-  case 2:
-   status(
-    "오류 2: 영상 데이터를 읽는 중 문제가 발생했습니다."
-   );
-   break;
-
-  case 3:
-   status(
-    "오류 3: 영상 디코딩에 실패했습니다.\n"+
-    "영상 코덱을 확인해 주세요."
-   );
-   break;
-
-  case 4:
-   status(
-    "오류 4: 지원하지 않는 영상 형식 또는 코덱입니다.\n"+
-    "MP4(H.264) 영상으로 변환해 보세요."
-   );
-   break;
-
-  default:
-   status("알 수 없는 영상 오류가 발생했습니다.");
- }
-
- console.error("Video Error:",error);
+ status(
+  "오류 "+error.code+": "+
+  (messages[error.code]||"알 수 없는 오류")
+ );
 });
 
-// 화면 그리기
-function drawTo(targetCtx,w,h){
- if(video.readyState < 2) return;
+// 영상 그리기
+function drawTo(target,w,h){
+ if(video.readyState<2) return;
 
- targetCtx.save();
+ target.save();
 
- targetCtx.fillStyle="black";
- targetCtx.fillRect(0,0,w,h);
+ target.fillStyle="black";
+ target.fillRect(0,0,w,h);
 
- const brightness = $("brightness").value;
- const contrast = $("contrast").value;
- const saturation = $("saturation").value;
+ const brightness=$("brightness").value;
+ const contrast=$("contrast").value;
+ const saturation=$("saturation").value;
 
- let filter =
+ let filter=
  `brightness(${brightness}%) `+
  `contrast(${contrast}%) `+
  `saturate(${saturation}%)`;
@@ -446,24 +479,25 @@ function drawTo(targetCtx,w,h){
   filter+=" blur(3px)";
  }
 
- targetCtx.filter=filter;
+ target.filter=filter;
 
- targetCtx.translate(w/2,h/2);
- targetCtx.rotate(rotation*Math.PI/180);
+ target.translate(w/2,h/2);
+ target.rotate(rotation*Math.PI/180);
 
- const swapped = rotation%180!==0;
- const availableW = swapped ? h : w;
- const availableH = swapped ? w : h;
+ const swapped=rotation%180!==0;
 
- const scale = Math.min(
+ const availableW=swapped?h:w;
+ const availableH=swapped?w:h;
+
+ const scale=Math.min(
   availableW/video.videoWidth,
   availableH/video.videoHeight
  );
 
- const vw = video.videoWidth*scale;
- const vh = video.videoHeight*scale;
+ const vw=video.videoWidth*scale;
+ const vh=video.videoHeight*scale;
 
- targetCtx.drawImage(
+ target.drawImage(
   video,
   -vw/2,
   -vh/2,
@@ -471,37 +505,40 @@ function drawTo(targetCtx,w,h){
   vh
  );
 
- targetCtx.restore();
+ target.restore();
 
- // 자막
- const text = $("caption").value;
+ const caption=$("caption").value;
 
- if(text){
-  targetCtx.save();
+ if(caption){
+  target.save();
 
-  const size =
-  Number($("fontSize").value)*w/960;
+  const fontSize=Math.max(
+   12,
+   Number($("fontSize").value)*w/960
+  );
 
-  targetCtx.font=
-  `bold ${Math.max(12,size)}px Arial`;
+  target.font=`bold ${fontSize}px Arial`;
+  target.textAlign="center";
+  target.textBaseline="middle";
 
-  targetCtx.textAlign="center";
-  targetCtx.fillStyle="white";
-  targetCtx.strokeStyle="black";
-  targetCtx.lineWidth=4;
+  target.strokeStyle="black";
+  target.lineWidth=Math.max(2,fontSize/9);
+  target.fillStyle="white";
 
   const x=w/2;
-  const y=h-40;
+  const y=h-fontSize*1.5;
 
-  targetCtx.strokeText(text,x,y);
-  targetCtx.fillText(text,x,y);
+  target.strokeText(caption,x,y);
+  target.fillText(caption,x,y);
 
-  targetCtx.restore();
+  target.restore();
  }
 }
 
 function drawFrame(){
- drawTo(ctx,canvas.width,canvas.height);
+ if(canvas.width && canvas.height){
+  drawTo(ctx,canvas.width,canvas.height);
+ }
 }
 
 function stopRender(){
@@ -537,8 +574,8 @@ video.addEventListener("timeupdate",()=>{
  $("seek").value=video.currentTime;
 
  $("timeText").textContent=
- formatTime(video.currentTime)
- +" / "+
+ formatTime(video.currentTime)+
+ " / "+
  formatTime(video.duration);
 
  if(trimPreview){
@@ -546,33 +583,44 @@ video.addEventListener("timeupdate",()=>{
 
   if(video.currentTime>=end){
    video.pause();
+   audio.pause();
    trimPreview=false;
   }
  }
-});
-
-$("seek").addEventListener("input",()=>{
- video.currentTime=Number($("seek").value);
 });
 
 // 재생
 $("playBtn").onclick=async()=>{
  if(!videoURL) return;
 
- if(video.paused){
-  await video.play();
-  if(audioURL){
-   audio.currentTime=0;
-   audio.play().catch(()=>{});
+ try{
+  if(video.paused){
+   await video.play();
+
+   if(audioURL){
+    audio.currentTime=0;
+    audio.play().catch(()=>{});
+   }
+  }else{
+   video.pause();
+   audio.pause();
   }
- }else{
-  video.pause();
-  audio.pause();
+ }catch(error){
+  status("재생 실패: "+error.message);
  }
 };
 
+// 탐색
+$("seek").addEventListener("input",()=>{
+ if(!videoURL || exporting) return;
+
+ video.currentTime=Number($("seek").value);
+});
+
 // 구간 미리보기
 $("trimBtn").onclick=async()=>{
+ if(!videoURL) return;
+
  const {start,end}=getRange();
 
  if(end<=start){
@@ -580,9 +628,13 @@ $("trimBtn").onclick=async()=>{
   return;
  }
 
- trimPreview=true;
- video.currentTime=start;
- await video.play();
+ try{
+  trimPreview=true;
+  video.currentTime=start;
+  await video.play();
+ }catch(error){
+  status("구간 재생 실패: "+error.message);
+ }
 };
 
 // 속도
@@ -590,7 +642,7 @@ $("speed").onchange=()=>{
  video.playbackRate=Number($("speed").value);
 };
 
-// 필터 변경
+// 필터
 [
  "brightness",
  "contrast",
@@ -635,7 +687,43 @@ $("audioInput").onchange=e=>{
 
  audioURL=URL.createObjectURL(file);
  audio.src=audioURL;
+
+ status("배경음악 불러오기 완료");
 };
+
+// 저장 취소
+$("cancelBtn").onclick=()=>{
+ if(!exporting) return;
+
+ cancelExport=true;
+ exportStatus("저장 취소 중...");
+
+ if(activeRecorder &&
+    activeRecorder.state!=="inactive"){
+  activeRecorder.stop();
+ }
+};
+
+// 녹화 형식 선택
+function getSupportedMime(){
+ if(!window.MediaRecorder) return null;
+
+ const types=[
+  "video/mp4;codecs=avc1.42E01E",
+  "video/mp4",
+  "video/webm;codecs=vp9",
+  "video/webm;codecs=vp8",
+  "video/webm"
+ ];
+
+ for(const type of types){
+  if(MediaRecorder.isTypeSupported(type)){
+   return type;
+  }
+ }
+
+ return null;
+}
 
 // 저장
 $("exportBtn").onclick=async()=>{
@@ -648,17 +736,31 @@ $("exportBtn").onclick=async()=>{
 
  if(!canvas.captureStream ||
     !window.MediaRecorder){
-  alert("이 브라우저는 영상 저장을 지원하지 않습니다.");
+  exportStatus(
+   "이 브라우저에서는 영상 저장 기능을 지원하지 않습니다."
+  );
+  return;
+ }
+
+ const mime=getSupportedMime();
+
+ if(!mime){
+  exportStatus(
+   "지원되는 영상 인코딩 형식이 없습니다."
+  );
   return;
  }
 
  const [w,h]=$("resolution").value
  .split("x").map(Number);
 
- if(w*h>3840*2160){
+ const pixels=w*h;
+
+ if(pixels>3840*2160){
   const ok=confirm(
-   "8K/16K 저장은 아이패드에서 메모리 부족으로 실패할 수 있습니다. 계속할까요?"
+   "8K/16K는 아이패드에서 저장 실패 또는 메모리 부족이 발생할 수 있습니다. 계속할까요?"
   );
+
   if(!ok) return;
  }
 
@@ -670,94 +772,136 @@ $("exportBtn").onclick=async()=>{
  }
 
  exporting=true;
- $("exportBtn").disabled=true;
+ cancelExport=false;
 
- let exportCanvas;
- let recorder;
- let stream;
- let exportRaf;
+ $("exportBtn").disabled=true;
+ $("cancelBtn").disabled=false;
+ $("progress").value=0;
+
+ clearDownload();
+
+ let exportCanvas=null;
+ let stream=null;
+ let recorder=null;
+ let exportRaf=null;
  let chunks=[];
+ let stopped=false;
+
+ const cleanup=()=>{
+  if(exportRaf!==null){
+   cancelAnimationFrame(exportRaf);
+   exportRaf=null;
+  }
+
+  if(stream){
+   stream.getTracks().forEach(track=>track.stop());
+  }
+
+  video.pause();
+
+  exporting=false;
+  activeRecorder=null;
+
+  $("exportBtn").disabled=false;
+  $("cancelBtn").disabled=true;
+ };
 
  try{
+  video.pause();
+  audio.pause();
+
+  exportStatus("저장 준비 중...");
+
   exportCanvas=document.createElement("canvas");
   exportCanvas.width=w;
   exportCanvas.height=h;
 
-  const exportCtx=exportCanvas.getContext("2d");
-
-  if(!exportCtx){
-   throw new Error("저장용 캔버스를 만들 수 없습니다.");
-  }
-
-  const mimeTypes=[
-   "video/mp4",
-   "video/webm;codecs=vp8",
-   "video/webm"
-  ];
-
-  const mime=mimeTypes.find(type=>
-   MediaRecorder.isTypeSupported(type)
-  );
-
-  if(!mime){
-   throw new Error("지원되는 영상 인코딩 형식이 없습니다.");
-  }
-
-  video.pause();
-  video.currentTime=start;
-
-  await new Promise(resolve=>{
-   if(Math.abs(video.currentTime-start)<0.05){
-    resolve();
-   }else{
-    video.addEventListener("seeked",resolve,{once:true});
-   }
+  const exportCtx=exportCanvas.getContext("2d",{
+   alpha:false
   });
 
+  if(!exportCtx){
+   throw new Error("저장용 화면을 생성할 수 없습니다.");
+  }
+
+  // 저장 위치로 이동
+  video.currentTime=start;
+
+  await new Promise((resolve,reject)=>{
+   if(Math.abs(video.currentTime-start)<0.05){
+    resolve();
+    return;
+   }
+
+   const timer=setTimeout(()=>{
+    reject(new Error("영상 탐색 시간 초과"));
+   },10000);
+
+   video.addEventListener("seeked",()=>{
+    clearTimeout(timer);
+    resolve();
+   },{once:true});
+  });
+
+  drawTo(exportCtx,w,h);
+
+  // 초당 24프레임
   stream=exportCanvas.captureStream(24);
 
   recorder=new MediaRecorder(stream,{
    mimeType:mime,
-   videoBitsPerSecond:8000000
+   videoBitsPerSecond:
+    pixels>1920*1080?12000000:6000000
   });
 
-  recorder.ondataavailable=e=>{
-   if(e.data.size>0) chunks.push(e.data);
-  };
+  activeRecorder=recorder;
 
-  recorder.onstop=()=>{
-   const blob=new Blob(chunks,{type:mime});
-   const url=URL.createObjectURL(blob);
+  const finished=new Promise((resolve,reject)=>{
 
-   const a=document.createElement("a");
-   a.href=url;
-   a.download=
-   "MiniCut_video."+
-   (mime.includes("mp4")?"mp4":"webm");
+   recorder.ondataavailable=e=>{
+    if(e.data && e.data.size>0){
+     chunks.push(e.data);
+    }
+   };
 
-   a.click();
+   recorder.onerror=e=>{
+    reject(new Error("영상 인코딩 오류"));
+   };
 
-   setTimeout(()=>URL.revokeObjectURL(url),60000);
-
-   exporting=false;
-   $("exportBtn").disabled=false;
-   status("영상 저장 완료");
-  };
-
-  recorder.onerror=()=>{
-   status("영상 저장 중 오류가 발생했습니다.");
-  };
+   recorder.onstop=()=>{
+    resolve();
+   };
+  });
 
   function exportLoop(){
+   if(cancelExport) return;
+
    drawTo(exportCtx,w,h);
 
-   if(video.currentTime>=end ||
-      video.ended){
+   const current=video.currentTime;
+
+   const percent=Math.min(
+    100,
+    Math.max(
+     0,
+     (current-start)/(end-start)*100
+    )
+   );
+
+   $("progress").value=percent;
+
+   exportStatus(
+    "영상 저장 중... "+percent.toFixed(1)+"%"
+   );
+
+   if(current>=end || video.ended){
+    stopped=true;
     video.pause();
+
     if(recorder.state!=="inactive"){
      recorder.stop();
     }
-    stream.getTracks().forEach(t=>t.stop());
+
     return;
    }
 
@@ -765,32 +909,101 @@ $("exportBtn").onclick=async()=>{
   }
 
   recorder.start(1000);
+
   await video.play();
 
   exportLoop();
-  status("영상 저장 중...");
+
+  await finished;
+
+  if(cancelExport){
+   exportStatus("영상 저장이 취소되었습니다.");
+   cleanup();
+   return;
+  }
+
+  // 빈 파일 방지
+  const totalSize=chunks.reduce(
+   (sum,chunk)=>sum+chunk.size,
+   0
+  );
+
+  if(totalSize===0){
+   throw new Error(
+    "녹화 데이터가 0KB입니다. Safari 인코딩이 지원되지 않을 수 있습니다."
+   );
+  }
+
+  const actualType=recorder.mimeType || mime;
+
+  const blob=new Blob(chunks,{
+   type:actualType
+  });
+
+  if(blob.size===0){
+   throw new Error("빈 영상 파일이 생성되었습니다.");
+  }
+
+  const extension=
+   actualType.includes("mp4")?"mp4":"webm";
+
+  downloadURL=URL.createObjectURL(blob);
+
+  const link=$("saveLink");
+
+  link.href=downloadURL;
+  link.download="MiniCut_video."+extension;
+  link.textContent=
+   "완성된 영상 다운로드 ("+
+   (blob.size/1024/1024).toFixed(2)+
+   "MB)";
+
+  link.style.display="block";
+
+  $("progress").value=100;
+
+  exportStatus(
+   "영상 저장 완료!\n"+
+   "파일 크기: "+
+   (blob.size/1024/1024).toFixed(2)+
+   "MB\n"+
+   "아래 다운로드 버튼을 눌러 저장하세요."
+  );
+
+  cleanup();
 
  }catch(error){
-  status("저장 실패: "+error.message);
+  console.error(error);
 
-  if(exportRaf){
-   cancelAnimationFrame(exportRaf);
+  exportStatus(
+   "저장 실패: "+error.message
+  );
+
+  if(recorder &&
+     recorder.state!=="inactive"){
+   try{
+    recorder.stop();
+   }catch(e){}
   }
 
-  if(stream){
-   stream.getTracks().forEach(t=>t.stop());
-  }
-
-  exporting=false;
-  $("exportBtn").disabled=false;
+  cleanup();
  }
 };
 
 window.addEventListener("pagehide",()=>{
  stopRender();
 
- if(videoURL) URL.revokeObjectURL(videoURL);
- if(audioURL) URL.revokeObjectURL(audioURL);
+ if(videoURL){
+  URL.revokeObjectURL(videoURL);
+ }
+
+ if(audioURL){
+  URL.revokeObjectURL(audioURL);
+ }
+
+ if(downloadURL){
+  URL.revokeObjectURL(downloadURL);
+ }
 });
 </script>
 
